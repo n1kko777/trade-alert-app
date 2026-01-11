@@ -1,6 +1,6 @@
 import { DEFAULT_SETTINGS } from '../constants';
 import { isThemeMode } from '../theme';
-import { AlertEvent, PricePoint, Settings, SymbolRuleInputs } from '../types';
+import type { AlertEvent, PricePoint, Quote, Settings, SymbolRuleInputs } from '../types';
 import { normalizeTimeInput } from './format';
 
 export const resolveSymbolRule = (settings: Settings, symbol: string) => {
@@ -15,7 +15,8 @@ export const resolveSymbolRule = (settings: Settings, symbol: string) => {
 export const computeChange = (history: PricePoint[], price: number) => {
   const baseline = history[0]?.price ?? price;
   const changePct = baseline ? ((price - baseline) / baseline) * 100 : 0;
-  const direction = Math.abs(changePct) < 0.01 ? 'flat' : changePct > 0 ? 'up' : 'down';
+  const direction: Quote['direction'] =
+    Math.abs(changePct) < 0.01 ? 'flat' : changePct > 0 ? 'up' : 'down';
   return { changePct, direction };
 };
 

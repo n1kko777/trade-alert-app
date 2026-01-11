@@ -9,13 +9,14 @@ import { Ionicons } from '@expo/vector-icons';
 import { DarkTheme, DefaultTheme, NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import * as BackgroundTask from 'expo-background-task';
+import Constants from 'expo-constants';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Notifications from 'expo-notifications';
 import { StatusBar } from 'expo-status-bar';
 import * as TaskManager from 'expo-task-manager';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
-import { Animated, Share, View, useColorScheme } from 'react-native';
+import { Animated, Platform, View, useColorScheme } from 'react-native';
 import { enableScreens } from 'react-native-screens';
 import {
   ALERTS_STORAGE_KEY,
@@ -29,7 +30,7 @@ import './src/background/task';
 import AlertsScreen from './src/screens/AlertsScreen';
 import DashboardScreen from './src/screens/DashboardScreen';
 import SettingsScreen from './src/screens/SettingsScreen';
-import { fetchAllTickers, fetchTicker } from './src/services/bybit';
+import { fetchAllTickers, fetchFuturesSymbols, fetchTicker } from './src/services/bybit';
 import { ensureAndroidChannel } from './src/services/notifications';
 import createStyles from './src/styles';
 import { ThemeProvider } from './src/theme-context';
@@ -109,13 +110,14 @@ export default function App() {
   const [quotes, setQuotes] = useState<Record<string, Quote>>({});
   const [prices, setPrices] = useState<Record<string, PricePoint[]>>({});
   const [allSymbols, setAllSymbols] = useState<string[]>([]);
+  const [futuresSymbols, setFuturesSymbols] = useState<string[]>([]);
   const [alerts, setAlerts] = useState<AlertEvent[]>([]);
   const [lastUpdated, setLastUpdated] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [notificationStatus, setNotificationStatus] = useState<'unknown' | 'granted' | 'denied'>(
-    'unknown'
-  );
+  const [notificationStatus, setNotificationStatus] = useState<
+    'unknown' | 'granted' | 'denied' | 'unavailable'
+  >('unknown');
   const [streamStatus, setStreamStatus] = useState<
     'off' | 'connecting' | 'live' | 'reconnecting' | 'error'
   >('off');
@@ -150,6 +152,16 @@ export default function App() {
 
   const pulse = useRef(new Animated.Value(0)).current;
 
+  const isExpoGo = Constants.appOwnership === 'expo' && Platform.OS === 'android';
+
+  const futuresSymbolsSet = useMemo(() => new Set(futuresSymbols), [futuresSymbols]);
+
+  const filterFuturesSymbols = useCallback(
+    (symbols: string[]) =>
+      futuresSymbolsSet.size ? symbols.filter((symbol) => futuresSymbolsSet.has(symbol)) : symbols,
+    [futuresSymbolsSet]
+  );
+
   const effectiveWebSocket = useMemo(
     () => settings.useWebSocket && !settings.trackAllSymbols,
     [settings.trackAllSymbols, settings.useWebSocket]
@@ -159,6 +171,11 @@ export default function App() {
     if (!settings.trackAllSymbols) return settings.symbols;
     return allSymbols.length ? allSymbols : settings.symbols;
   }, [allSymbols, settings.symbols, settings.trackAllSymbols]);
+
+  const streamSymbols = useMemo(
+    () => filterFuturesSymbols(settings.symbols),
+    [filterFuturesSymbols, settings.symbols]
+  );
 
   useEffect(() => {
     pricesRef.current = prices;
@@ -219,6 +236,23 @@ export default function App() {
       }
     };
     loadSettings();
+  }, [isExpoGo]);
+
+  useEffect(() => {
+    let active = true;
+    const loadFutures = async () => {
+      try {
+        const list = await fetchFuturesSymbols();
+        if (!active) return;
+        setFuturesSymbols(list);
+      } catch (fetchError) {
+        console.warn('Failed to load futures symbols', fetchError);
+      }
+    };
+    loadFutures();
+    return () => {
+      active = false;
+    };
   }, []);
 
   useEffect(() => {
@@ -248,6 +282,10 @@ export default function App() {
   }, []);
 
   const ensureNotificationPermission = useCallback(async () => {
+    if (isExpoGo) {
+      setNotificationStatus('unavailable');
+      return false;
+    }
     try {
       const existing = await Notifications.getPermissionsAsync();
       if (existing.status === 'granted') {
@@ -267,6 +305,10 @@ export default function App() {
 
   useEffect(() => {
     const checkPermission = async () => {
+      if (isExpoGo) {
+        setNotificationStatus('unavailable');
+        return;
+      }
       try {
         const existing = await Notifications.getPermissionsAsync();
         if (existing.status === 'granted') {
@@ -281,7 +323,7 @@ export default function App() {
       }
     };
     checkPermission();
-  }, []);
+  }, [isExpoGo]);
 
   useEffect(() => {
     if (settings.notificationsEnabled) {
@@ -423,12 +465,6 @@ export default function App() {
     persistAlerts();
   }, [alerts]);
 
-  useEffect(() => {
-    if (settings.trackAllSymbols) {
-      setAllSymbols([]);
-    }
-  }, [settings.trackAllSymbols]);
-
   const saveSettings = useCallback(async (nextSettings: Settings) => {
     try {
       await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(nextSettings));
@@ -436,6 +472,36 @@ export default function App() {
       console.warn('Failed to save settings', storageError);
     }
   }, []);
+
+  useEffect(() => {
+    if (settings.trackAllSymbols) {
+      setAllSymbols([]);
+    }
+  }, [settings.trackAllSymbols]);
+
+  useEffect(() => {
+    if (!futuresSymbolsSet.size || settings.trackAllSymbols) return;
+    const filteredSymbols = filterFuturesSymbols(settings.symbols);
+    const fallbackSymbols = filterFuturesSymbols(DEFAULT_SETTINGS.symbols);
+    const nextSymbols = filteredSymbols.length ? filteredSymbols : fallbackSymbols;
+    const unchanged =
+      nextSymbols.length === settings.symbols.length &&
+      nextSymbols.every((symbol, index) => symbol === settings.symbols[index]);
+    if (unchanged) return;
+    const allowedSet = new Set(nextSymbols);
+    const nextSymbolRules = Object.fromEntries(
+      Object.entries(settings.symbolRules).filter(([symbol]) => allowedSet.has(symbol))
+    );
+    const nextSettings = {
+      ...settings,
+      symbols: nextSymbols,
+      symbolRules: nextSymbolRules,
+    };
+    setSettings(nextSettings);
+    setSymbolInput(nextSymbols.join(', '));
+    setSymbolRuleInputs(buildRuleInputs(nextSymbols, nextSymbolRules));
+    saveSettings(nextSettings);
+  }, [filterFuturesSymbols, futuresSymbolsSet, saveSettings, settings]);
 
   const applySettings = useCallback(() => {
     const symbols = parseSymbols(symbolInput);
@@ -455,7 +521,10 @@ export default function App() {
       quietEndInput,
       DEFAULT_SETTINGS.quietHoursEnd
     );
-    const nextSymbols = symbols.length ? symbols : DEFAULT_SETTINGS.symbols;
+    const parsedSymbols = symbols.length ? symbols : DEFAULT_SETTINGS.symbols;
+    const filteredSymbols = filterFuturesSymbols(parsedSymbols);
+    const fallbackSymbols = filterFuturesSymbols(DEFAULT_SETTINGS.symbols);
+    const nextSymbols = filteredSymbols.length ? filteredSymbols : fallbackSymbols;
     const nextSymbolRules: Settings['symbolRules'] = {};
 
     nextSymbols.forEach((symbol) => {
@@ -525,6 +594,7 @@ export default function App() {
   }, [
     backgroundInput,
     cooldownInput,
+    filterFuturesSymbols,
     maxAlertsInput,
     notificationsInput,
     notificationSoundInput,
@@ -566,6 +636,7 @@ export default function App() {
   const scheduleAlertNotification = useCallback(
     async (alert: AlertEvent) => {
       if (!settings.notificationsEnabled) return;
+      if (isExpoGo) return;
       if (
         settings.quietHoursEnabled &&
         isWithinQuietHours(new Date(), settings.quietHoursStart, settings.quietHoursEnd)
@@ -583,14 +654,15 @@ export default function App() {
         content: {
           title: `${alert.symbol} ${direction}`,
           body,
-          sound: settings.notificationSound ? 'default' : null,
-          ...(channelId ? { channelId } : null),
+          sound: settings.notificationSound ? 'default' : false,
+          ...(channelId ? { channelId } : {}),
         },
         trigger: null,
       });
     },
     [
       ensureNotificationPermission,
+      isExpoGo,
       settings.notificationsEnabled,
       settings.notificationSound,
       settings.quietHoursEnabled,
@@ -679,9 +751,15 @@ export default function App() {
     try {
       const responses = settings.trackAllSymbols
         ? await fetchAllTickers()
-        : await Promise.all(settings.symbols.map((symbol) => fetchTicker(symbol)));
+        : await Promise.all(
+            filterFuturesSymbols(settings.symbols).map((symbol) => fetchTicker(symbol))
+          );
+      const filteredResponses =
+        settings.trackAllSymbols && futuresSymbolsSet.size
+          ? responses.filter(({ symbol }) => futuresSymbolsSet.has(symbol))
+          : responses;
       if (settings.trackAllSymbols) {
-        const nextSymbols = responses.map((entry) => entry.symbol);
+        const nextSymbols = filteredResponses.map((entry) => entry.symbol);
         setAllSymbols((prev) =>
           prev.length === nextSymbols.length && prev.every((item, idx) => item === nextSymbols[idx])
             ? prev
@@ -692,7 +770,7 @@ export default function App() {
       const nextQuotes: Record<string, Quote> = {};
       const nextAlerts: AlertEvent[] = [];
 
-      responses.forEach(({ symbol, price }) => {
+      filteredResponses.forEach(({ symbol, price }) => {
         applyPriceTick(symbol, price, now, nextPrices, nextQuotes, nextAlerts);
       });
 
@@ -716,6 +794,8 @@ export default function App() {
     }
   }, [
     applyPriceTick,
+    filterFuturesSymbols,
+    futuresSymbolsSet,
     settings.trackAllSymbols,
     persistRuntimeState,
     scheduleAlertNotification,
@@ -773,7 +853,7 @@ export default function App() {
         if (!active) return;
         setStreamStatus('live');
         retries = 0;
-        const args = settings.symbols.map((symbol) => `tickers.${symbol}`);
+        const args = streamSymbols.map((symbol) => `tickers.${symbol}`);
         ws.send(JSON.stringify({ op: 'subscribe', args }));
       };
 
@@ -819,7 +899,7 @@ export default function App() {
       active = false;
       disconnect();
     };
-  }, [effectiveWebSocket, handleStreamTick, settings.symbols]);
+  }, [effectiveWebSocket, handleStreamTick, streamSymbols]);
 
   const healthLabel = useMemo(() => {
     if (error) return 'Degraded';
@@ -834,6 +914,7 @@ export default function App() {
 
   const notificationLabel = useMemo(() => {
     if (!settings.notificationsEnabled) return 'Notifications off';
+    if (notificationStatus === 'unavailable') return 'Notifications need a dev build';
     const soundLabel = settings.notificationSound ? 'Sound on' : 'Silent';
     if (notificationStatus === 'granted') return `Notifications on • ${soundLabel}`;
     if (notificationStatus === 'denied') return 'Notifications blocked';
@@ -871,6 +952,8 @@ export default function App() {
   const healthTone: Tone = error ? 'bad' : isLoading ? 'warn' : 'good';
   const notificationTone: Tone = !settings.notificationsEnabled
     ? 'muted'
+    : notificationStatus === 'unavailable'
+    ? 'warn'
     : notificationStatus === 'granted'
     ? 'good'
     : notificationStatus === 'denied'
@@ -911,25 +994,6 @@ export default function App() {
       : 'Loading coins...'
     : `${settings.symbols.length} symbols`;
 
-  const exportAlerts = useCallback(async () => {
-    if (!alerts.length) return;
-    const header = 'symbol,changePct,price,time';
-    const lines = alerts.map((alert) => {
-      const change = `${alert.changePct >= 0 ? '+' : ''}${alert.changePct.toFixed(2)}`;
-      return `${alert.symbol},${change},${formatPrice(alert.price)},${new Date(
-        alert.ts
-      ).toISOString()}`;
-    });
-    try {
-      await Share.share({
-        title: 'Trade alerts',
-        message: [header, ...lines].join('\n'),
-      });
-    } catch (shareError) {
-      console.warn('Failed to export alerts', shareError);
-    }
-  }, [alerts]);
-
   const clearAlerts = useCallback(() => {
     setAlerts([]);
     lastAlertAtRef.current = {};
@@ -955,9 +1019,9 @@ export default function App() {
           <SafeAreaView style={styles.safe} edges={['top']}>
             <NavigationContainer theme={navTheme}>
               <Tab.Navigator
-                sceneContainerStyle={{ backgroundColor: 'transparent' }}
                 screenOptions={({ route }) => ({
                   headerShown: false,
+                  sceneStyle: { backgroundColor: 'transparent' },
                   tabBarStyle: styles.tabBar,
                   tabBarLabelStyle: styles.tabBarLabel,
                   tabBarActiveTintColor: theme.colors.tabBarActive,
@@ -1016,7 +1080,6 @@ export default function App() {
                     <AlertsScreen
                       alerts={alerts}
                       alertLabel={alertLabel}
-                      onExport={exportAlerts}
                       onClear={clearAlerts}
                     />
                   )}
@@ -1043,6 +1106,7 @@ export default function App() {
                       themeModeInput={themeModeInput}
                       symbolRuleInputs={symbolRuleInputs}
                       notificationStatus={notificationStatus}
+                      isExpoGo={isExpoGo}
                       backgroundStatus={backgroundStatus}
                       onSymbolChange={setSymbolInput}
                       onThresholdChange={setThresholdInput}

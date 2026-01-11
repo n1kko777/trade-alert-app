@@ -7,14 +7,12 @@ import { formatClock, formatPrice } from '../utils/format';
 type AlertsPanelProps = {
   alerts: AlertEvent[];
   alertLabel: string;
-  onExport: () => void;
   onClear: () => void;
 };
 
 export default function AlertsPanel({
   alerts,
   alertLabel,
-  onExport,
   onClear,
 }: AlertsPanelProps) {
   const { styles } = useTheme();
@@ -27,16 +25,6 @@ export default function AlertsPanel({
           <Text style={styles.sectionSub}>{alertLabel}</Text>
         </View>
         <View style={styles.sectionActions}>
-          <TouchableOpacity onPress={onExport} disabled={!alerts.length}>
-            <Text
-              style={[
-                styles.sectionAction,
-                !alerts.length ? styles.sectionActionMuted : null,
-              ]}
-            >
-              Export
-            </Text>
-          </TouchableOpacity>
           <TouchableOpacity onPress={onClear} disabled={!alerts.length}>
             <Text style={[styles.sectionAction, !alerts.length ? styles.sectionActionMuted : null]}>
               Clear

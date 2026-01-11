@@ -1,8 +1,9 @@
 {
   "expo": {
-    "name": "trade-alert-app",
+    "name": "TradePulse Alerts",
     "slug": "trade-alert-app",
     "version": "1.0.0",
+    "description": "Percent‑move crypto alerts for Bybit spot pairs. Realtime stream or polling, background monitoring, quiet hours, and local history.",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
@@ -13,6 +14,8 @@
       "backgroundColor": "#ffffff"
     },
     "ios": {
+      "bundleIdentifier": "com.niktar.tradepulsealerts",
+      "buildNumber": "1",
       "supportsTablet": true,
       "infoPlist": {
         "UIBackgroundModes": [
@@ -21,6 +24,8 @@
       }
     },
     "android": {
+      "package": "com.niktar.tradepulsealerts",
+      "versionCode": 1,
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
@@ -34,6 +39,11 @@
     "plugins": [
       "expo-font",
       "expo-background-task"
-    ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "c001661f-49f3-412e-a591-7342c66e6972"
+      }
+    }
   }
 }

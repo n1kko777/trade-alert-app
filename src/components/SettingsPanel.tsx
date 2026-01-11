@@ -23,7 +23,8 @@ type SettingsPanelProps = {
   trackAllSymbolsInput: boolean;
   themeModeInput: ThemeMode;
   symbolRuleInputs: SymbolRuleInputs;
-  notificationStatus: 'unknown' | 'granted' | 'denied';
+  notificationStatus: 'unknown' | 'granted' | 'denied' | 'unavailable';
+  isExpoGo: boolean;
   backgroundStatus: 'off' | 'on' | 'unavailable' | 'error';
   onSymbolChange: (value: string) => void;
   onThresholdChange: (value: string) => void;
@@ -65,6 +66,7 @@ export default function SettingsPanel({
   themeModeInput,
   symbolRuleInputs,
   notificationStatus,
+  isExpoGo,
   backgroundStatus,
   onSymbolChange,
   onThresholdChange,
@@ -89,21 +91,60 @@ export default function SettingsPanel({
   const placeholderColor = theme.colors.textPlaceholder;
   const switchTrackColor = { false: theme.colors.switchTrackOff, true: theme.colors.accent };
   const switchThumbColor = theme.colors.switchThumb;
+  const [openInfo, setOpenInfo] = React.useState<Record<string, boolean>>({});
   const themeOptions: { value: ThemeMode; label: string }[] = [
     { value: 'system', label: 'System' },
     { value: 'light', label: 'Light' },
     { value: 'dark', label: 'Dark' },
   ];
+  const toggleInfo = (key: string) =>
+    setOpenInfo((prev) => ({
+      ...prev,
+      [key]: !prev[key],
+    }));
+  const renderFieldLabel = (
+    label: string,
+    key: string,
+    description: string,
+    align: 'left' | 'right' = 'left'
+  ) => (
+    <View style={styles.labelRow}>
+      <Text style={[styles.fieldLabel, styles.fieldLabelInline]}>{label}</Text>
+      <View style={styles.infoIconWrapper}>
+        <TouchableOpacity
+          onPress={() => toggleInfo(key)}
+          hitSlop={{ top: 8, right: 8, bottom: 8, left: 8 }}
+          accessibilityRole="button"
+          accessibilityLabel={`${label} info`}
+        >
+          <View style={styles.infoIcon}>
+            <Text style={styles.infoIconText}>i</Text>
+          </View>
+        </TouchableOpacity>
+        {openInfo[key] ? (
+          <View
+            style={[
+              styles.tooltipBubble,
+              align === 'right' ? styles.tooltipBubbleRight : styles.tooltipBubbleLeft,
+            ]}
+          >
+            <Text style={styles.tooltipText}>{description}</Text>
+          </View>
+        ) : null}
+      </View>
+    </View>
+  );
 
   return (
     <View style={styles.panel}>
       <View style={styles.field}>
-        <View style={styles.toggleRow}>
+          <View style={styles.toggleRow}>
           <View style={styles.toggleCopy}>
-            <Text style={styles.fieldLabel}>Track all Bybit spot coins</Text>
-            <Text style={styles.helperText}>
-              Pulls the full spot ticker list on each poll and computes alerts for every symbol.
-            </Text>
+            {renderFieldLabel(
+              'Track all futures-tradable symbols',
+              'trackAll',
+              'Pulls the full spot ticker list on each poll and keeps symbols with Bybit futures. Symbol list and per-coin overrides are disabled in this mode.'
+            )}
           </View>
           <Switch
             value={trackAllSymbolsInput}
@@ -112,14 +153,9 @@ export default function SettingsPanel({
             thumbColor={switchThumbColor}
           />
         </View>
-        {trackAllSymbolsInput ? (
-          <Text style={styles.helperText}>
-            Symbol list and per-coin overrides are disabled in this mode.
-          </Text>
-        ) : null}
       </View>
       <View style={styles.field}>
-        <Text style={styles.fieldLabel}>Theme</Text>
+        {renderFieldLabel('Theme', 'theme', 'Use system, light, or dark appearance.')}
         <View style={styles.themeToggle}>
           {themeOptions.map((option) => {
             const isActive = themeModeInput === option.value;
@@ -141,10 +177,13 @@ export default function SettingsPanel({
             );
           })}
         </View>
-        <Text style={styles.helperText}>System follows your device appearance.</Text>
       </View>
       <View style={styles.field}>
-        <Text style={styles.fieldLabel}>Symbols (comma separated)</Text>
+        {renderFieldLabel(
+          'Symbols (comma separated)',
+          'symbols',
+          'Comma-separated list of symbols to monitor. Only symbols with active Bybit futures markets are tracked.'
+        )}
         <TextInput
           value={symbolInput}
           onChangeText={onSymbolChange}
@@ -157,7 +196,11 @@ export default function SettingsPanel({
       </View>
           <View style={styles.fieldRow}>
             <View style={styles.fieldInline}>
-              <Text style={styles.fieldLabel}>Threshold %</Text>
+              {renderFieldLabel(
+                'Threshold %',
+                'threshold',
+                'Triggers an alert when price change meets or exceeds this percent.'
+              )}
               <TextInput
                 value={thresholdInput}
                 onChangeText={onThresholdChange}
@@ -168,7 +211,12 @@ export default function SettingsPanel({
               />
             </View>
             <View style={styles.fieldInline}>
-              <Text style={styles.fieldLabel}>Window (min)</Text>
+              {renderFieldLabel(
+                'Window (min)',
+                'window',
+                'Time window used to measure the percent change.',
+                'right'
+              )}
               <TextInput
                 value={windowInput}
                 onChangeText={onWindowChange}
@@ -180,7 +228,11 @@ export default function SettingsPanel({
             </View>
           </View>
           <View style={styles.field}>
-            <Text style={styles.fieldLabel}>Cooldown (min)</Text>
+            {renderFieldLabel(
+              'Cooldown (min)',
+              'cooldown',
+              'Minimum minutes between alerts for the same symbol.'
+            )}
             <TextInput
               value={cooldownInput}
               onChangeText={onCooldownChange}
@@ -192,7 +244,11 @@ export default function SettingsPanel({
           </View>
           <View style={styles.fieldRow}>
             <View style={styles.fieldInline}>
-              <Text style={styles.fieldLabel}>Alert retention (days)</Text>
+              {renderFieldLabel(
+                'Alert retention (days)',
+                'retention',
+                'How long to keep alert history before pruning.'
+              )}
               <TextInput
                 value={retentionInput}
                 onChangeText={onRetentionChange}
@@ -203,7 +259,12 @@ export default function SettingsPanel({
               />
             </View>
             <View style={styles.fieldInline}>
-              <Text style={styles.fieldLabel}>Max stored alerts</Text>
+              {renderFieldLabel(
+                'Max stored alerts',
+                'maxAlerts',
+                'Hard cap on how many alerts are kept.',
+                'right'
+              )}
               <TextInput
                 value={maxAlertsInput}
                 onChangeText={onMaxAlertsChange}
@@ -215,7 +276,11 @@ export default function SettingsPanel({
             </View>
           </View>
           <View style={styles.field}>
-            <Text style={styles.fieldLabel}>Polling interval (sec)</Text>
+            {renderFieldLabel(
+              'Polling interval (sec)',
+              'poll',
+              'How often prices are fetched when polling is used.'
+            )}
             <TextInput
               value={pollInput}
               onChangeText={onPollChange}
@@ -227,8 +292,11 @@ export default function SettingsPanel({
           </View>
       {!trackAllSymbolsInput ? (
         <View style={styles.field}>
-          <Text style={styles.fieldLabel}>Symbol overrides</Text>
-          <Text style={styles.helperText}>Leave fields empty to use global alert settings.</Text>
+          {renderFieldLabel(
+            'Symbol overrides',
+            'overrides',
+            'Override threshold, window, and cooldown per symbol. Leave empty to use global settings.'
+          )}
           <View style={styles.overrideList}>
             {settings.symbols.map((symbol) => (
               <View key={symbol} style={styles.overrideRow}>
@@ -267,10 +335,11 @@ export default function SettingsPanel({
           <View style={styles.field}>
             <View style={styles.toggleRow}>
               <View style={styles.toggleCopy}>
-                <Text style={styles.fieldLabel}>Background monitoring</Text>
-                <Text style={styles.helperText}>
-                  Uses OS background tasks. Frequency is limited by iOS/Android.
-                </Text>
+                {renderFieldLabel(
+                  'Background monitoring',
+                  'background',
+                  'Uses OS background tasks. Frequency is limited by iOS/Android.'
+                )}
               </View>
               <Switch
                 value={backgroundInput}
@@ -283,13 +352,14 @@ export default function SettingsPanel({
               <Text style={styles.helperWarn}>Background fetch is disabled by the system.</Text>
             ) : null}
           </View>
-          <View style={styles.field}>
+        <View style={styles.field}>
           <View style={styles.toggleRow}>
             <View style={styles.toggleCopy}>
-              <Text style={styles.fieldLabel}>Realtime stream (WebSocket)</Text>
-              <Text style={styles.helperText}>
-                Faster updates with lower delay. Falls back to polling if the stream drops.
-              </Text>
+              {renderFieldLabel(
+                'Realtime stream (WebSocket)',
+                'websocket',
+                'Faster updates with lower delay. Falls back to polling if the stream drops. Realtime streams are disabled in all-coins mode.'
+              )}
             </View>
             <Switch
               value={trackAllSymbolsInput ? false : useWebSocketInput}
@@ -299,15 +369,15 @@ export default function SettingsPanel({
               disabled={trackAllSymbolsInput}
             />
           </View>
-          {trackAllSymbolsInput ? (
-            <Text style={styles.helperText}>Realtime streams are disabled in all-coins mode.</Text>
-          ) : null}
         </View>
           <View style={styles.field}>
             <View style={styles.toggleRow}>
               <View style={styles.toggleCopy}>
-                <Text style={styles.fieldLabel}>Alert notifications</Text>
-                <Text style={styles.helperText}>Local alert when threshold is reached.</Text>
+                {renderFieldLabel(
+                  'Alert notifications',
+                  'notifications',
+                  'Sends a local notification when an alert is triggered.'
+                )}
               </View>
               <Switch
                 value={notificationsInput}
@@ -316,6 +386,12 @@ export default function SettingsPanel({
                 thumbColor={switchThumbColor}
               />
             </View>
+            {notificationsInput && isExpoGo ? (
+              <Text style={styles.helperWarn}>
+                Expo Go on Android doesn't support push notifications on SDK 53+. Use a dev build
+                to enable alerts.
+              </Text>
+            ) : null}
             {notificationsInput && notificationStatus === 'denied' ? (
               <Text style={styles.helperWarn}>Permission denied. Enable in iOS Settings.</Text>
             ) : null}
@@ -324,10 +400,11 @@ export default function SettingsPanel({
             <View style={styles.field}>
               <View style={styles.toggleRow}>
                 <View style={styles.toggleCopy}>
-                  <Text style={styles.fieldLabel}>Notification sound</Text>
-                  <Text style={styles.helperText}>
-                    Disable to keep alerts silent while still logging them.
-                  </Text>
+                  {renderFieldLabel(
+                    'Notification sound',
+                    'sound',
+                    'Disable to keep alerts silent while still logging them.'
+                  )}
                 </View>
                 <Switch
                   value={notificationSoundInput}
@@ -341,10 +418,11 @@ export default function SettingsPanel({
           <View style={styles.field}>
             <View style={styles.toggleRow}>
               <View style={styles.toggleCopy}>
-                <Text style={styles.fieldLabel}>Quiet hours</Text>
-                <Text style={styles.helperText}>
-                  Suppress notifications during the selected window.
-                </Text>
+                {renderFieldLabel(
+                  'Quiet hours',
+                  'quietHours',
+                  'Suppress notifications between the selected times.'
+                )}
               </View>
               <Switch
                 value={quietHoursEnabledInput}
@@ -382,6 +460,10 @@ export default function SettingsPanel({
           <TouchableOpacity style={styles.saveButton} onPress={onApply}>
             <Text style={styles.saveButtonText}>Apply settings</Text>
           </TouchableOpacity>
+          <Text style={styles.helperText}>
+            Data source: Bybit public market tickers. Not affiliated with Bybit. Not financial
+            advice.
+          </Text>
     </View>
   );
 }

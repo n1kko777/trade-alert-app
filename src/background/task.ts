@@ -1,7 +1,9 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as BackgroundTask from 'expo-background-task';
+import Constants from 'expo-constants';
 import * as Notifications from 'expo-notifications';
 import * as TaskManager from 'expo-task-manager';
+import { Platform } from 'react-native';
 import {
   ALERTS_STORAGE_KEY,
   BACKGROUND_TASK,
@@ -10,7 +12,7 @@ import {
   STORAGE_KEY,
 } from '../constants';
 import { AlertEvent, PricePoint, Settings } from '../types';
-import { fetchAllTickers, fetchTicker } from '../services/bybit';
+import { fetchAllTickers, fetchFuturesSymbols, fetchTicker } from '../services/bybit';
 import { ensureAndroidChannel } from '../services/notifications';
 import {
   computeChange,
@@ -21,6 +23,8 @@ import {
 } from '../utils/data';
 import { formatPrice, isWithinQuietHours } from '../utils/format';
 import { loadJson } from '../utils/storage';
+
+const isExpoGo = Constants.appOwnership === 'expo' && Platform.OS === 'android';
 
 TaskManager.defineTask(BACKGROUND_TASK, async () => {
   try {
@@ -44,14 +48,30 @@ TaskManager.defineTask(BACKGROUND_TASK, async () => {
       loadJson<Record<string, number>>(LAST_ALERT_AT_KEY, {}),
     ]);
 
+    let futuresSymbols: string[] = [];
+    try {
+      futuresSymbols = await fetchFuturesSymbols();
+    } catch (fetchError) {
+      console.warn('Failed to load futures symbols', fetchError);
+    }
+    const futuresSymbolsSet = new Set(futuresSymbols);
+    const filterFuturesSymbols = (symbols: string[]) =>
+      futuresSymbolsSet.size ? symbols.filter((symbol) => futuresSymbolsSet.has(symbol)) : symbols;
+
     const now = Date.now();
     const responses = settings.trackAllSymbols
       ? await fetchAllTickers()
-      : await Promise.all(settings.symbols.map((symbol) => fetchTicker(symbol)));
+      : await Promise.all(
+          filterFuturesSymbols(settings.symbols).map((symbol) => fetchTicker(symbol))
+        );
+    const filteredResponses =
+      settings.trackAllSymbols && futuresSymbolsSet.size
+        ? responses.filter(({ symbol }) => futuresSymbolsSet.has(symbol))
+        : responses;
     const nextHistory: Record<string, PricePoint[]> = { ...history };
     const newAlerts: AlertEvent[] = [];
 
-    responses.forEach(({ symbol, price }) => {
+    filteredResponses.forEach(({ symbol, price }) => {
       const { thresholdPct, windowMinutes, cooldownMinutes } = resolveSymbolRule(settings, symbol);
       const cutoff = now - windowMinutes * 60 * 1000;
       const historyPoints = [...(nextHistory[symbol] ?? []), { ts: now, price }].filter(
@@ -89,6 +109,7 @@ TaskManager.defineTask(BACKGROUND_TASK, async () => {
     ]);
 
     if (
+      !isExpoGo &&
       settings.notificationsEnabled &&
       newAlerts.length &&
       (!settings.quietHoursEnabled ||
@@ -104,8 +125,8 @@ TaskManager.defineTask(BACKGROUND_TASK, async () => {
                 body: `${alert.changePct >= 0 ? '+' : ''}${alert.changePct.toFixed(
                   2
                 )}% to $${formatPrice(alert.price)}`,
-                sound: settings.notificationSound ? 'default' : null,
-                ...(channelId ? { channelId } : null),
+                sound: settings.notificationSound ? 'default' : false,
+                ...(channelId ? { channelId } : {}),
               },
               trigger: null,
             })

@@ -1,9 +1,9 @@
-# Trade Alert App
+# TradePulse Alerts
 
-React Native (Expo) app that watches Bybit spot prices and sends alerts when a symbol moves by a given percentage within a time window. Alerts are stored locally, can be exported from the app, and can run in the background when enabled.
+React Native (Expo) app that monitors Bybit spot prices and sends alerts when a symbol moves by a given percentage within a rolling time window. Alerts are stored locally and can run in the background when enabled.
 
 ## Features
-- Watch a custom list of symbols or all Bybit spot coins.
+- Watch a custom list of futures-tradable symbols or all futures-tradable Bybit spot coins.
 - Threshold alerts based on percent change over a rolling window.
 - WebSocket streaming for realtime updates (disabled when tracking all symbols).
 - Background polling via Expo background tasks.
@@ -50,7 +50,7 @@ npm run web
 Default settings live in `src/constants.ts` under `DEFAULT_SETTINGS`.
 
 Key settings:
-- `symbols`: list of Bybit spot symbols (e.g. `BTCUSDT`).
+- `symbols`: list of Bybit spot symbols with futures markets (e.g. `BTCUSDT`).
 - `thresholdPct`, `windowMinutes`, `cooldownMinutes`.
 - `pollIntervalSec` for polling mode.
 - `useWebSocket` for realtime mode.
@@ -66,7 +66,8 @@ Settings are persisted in AsyncStorage with keys defined in `src/constants.ts`.
 - Background tasks and notifications have platform limitations; test on a real device when needed.
 
 ## Data sources
-- REST polling: `https://api.bybit.com/v5/market/tickers?category=spot`
+- REST polling: `https://api.bybit.com/v5/market/tickers?category=spot` (filtered to futures symbols)
+- Futures symbol universe: `https://api.bybit.com/v5/market/tickers?category=linear`
 - WebSocket: `wss://stream.bybit.com/v5/public/spot`
 
 ## Testing

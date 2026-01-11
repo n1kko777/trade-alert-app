@@ -238,7 +238,7 @@ export default function StatusPanel({
               <View style={[styles.statusDot, getToneStyle(quietTone)]} />
               <Text style={styles.metaText}>{quietLabel}</Text>
             </View>
-            <Text style={styles.metaText}>Source Bybit spot tickers</Text>
+            <Text style={styles.metaText}>Source Bybit spot tickers • futures only</Text>
           </View>
         </>
       )}

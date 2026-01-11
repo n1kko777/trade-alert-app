@@ -24,7 +24,8 @@ type SettingsScreenProps = {
   trackAllSymbolsInput: boolean;
   themeModeInput: ThemeMode;
   symbolRuleInputs: SymbolRuleInputs;
-  notificationStatus: 'unknown' | 'granted' | 'denied';
+  notificationStatus: 'unknown' | 'granted' | 'denied' | 'unavailable';
+  isExpoGo: boolean;
   backgroundStatus: 'off' | 'on' | 'unavailable' | 'error';
   onSymbolChange: (value: string) => void;
   onThresholdChange: (value: string) => void;
@@ -66,6 +67,7 @@ export default function SettingsScreen({
   themeModeInput,
   symbolRuleInputs,
   notificationStatus,
+  isExpoGo,
   backgroundStatus,
   onSymbolChange,
   onThresholdChange,
@@ -110,6 +112,7 @@ export default function SettingsScreen({
         themeModeInput={themeModeInput}
         symbolRuleInputs={symbolRuleInputs}
         notificationStatus={notificationStatus}
+        isExpoGo={isExpoGo}
         backgroundStatus={backgroundStatus}
         onSymbolChange={onSymbolChange}
         onThresholdChange={onThresholdChange}

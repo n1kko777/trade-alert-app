@@ -22,7 +22,7 @@ export const parseSymbols = (input: string) => {
 };
 
 export const formatPrice = (price?: number) => {
-  if (!Number.isFinite(price)) return '--';
+  if (price == null || !Number.isFinite(price)) return '--';
   if (price >= 1000) return price.toFixed(2);
   if (price >= 100) return price.toFixed(3);
   if (price >= 1) return price.toFixed(4);

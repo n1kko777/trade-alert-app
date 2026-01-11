@@ -7,14 +7,12 @@ import { AlertEvent } from '../types';
 type AlertsScreenProps = {
   alerts: AlertEvent[];
   alertLabel: string;
-  onExport: () => void;
   onClear: () => void;
 };
 
 export default function AlertsScreen({
   alerts,
   alertLabel,
-  onExport,
   onClear,
 }: AlertsScreenProps) {
   const { styles } = useTheme();
@@ -36,7 +34,6 @@ export default function AlertsScreen({
       <AlertsPanel
         alerts={alerts}
         alertLabel={alertLabel}
-        onExport={onExport}
         onClear={onClear}
       />
     </ScrollView>
