@@ -5,7 +5,27 @@ import {
   blockIpAddress,
   registerHoneypotRoutes,
   isIpBlocked,
+  trackFailedLogin,
+  getFailedLoginCount,
+  clearFailedLogins,
+  getAutoBlockDuration,
+  FAILED_LOGIN_THRESHOLD,
+  FAILED_LOGIN_TTL_SECONDS,
+  AUTO_BLOCK_DURATION_FIRST_MS,
+  AUTO_BLOCK_DURATION_REPEAT_MS,
 } from './security.middleware.js';
+
+// Mock Redis
+const mockRedisClient = {
+  incr: vi.fn(),
+  expire: vi.fn(),
+  get: vi.fn(),
+  del: vi.fn(),
+  set: vi.fn(),
+};
+vi.mock('../config/redis.js', () => ({
+  getRedis: () => mockRedisClient,
+}));
 
 // Mock database
 const mockQuery = vi.fn();
@@ -135,6 +155,22 @@ describe('Security Middleware - Honeypot', () => {
 
       expect(mockQuery).toHaveBeenCalledWith(
         expect.stringMatching(/blocked_until.*>.*NOW\(\)|NOW\(\).*<.*blocked_until/i),
+        expect.any(Array)
+      );
+    });
+
+    it('should return true for permanently blocked IP (blocked_until is null)', async () => {
+      mockQuery.mockReset();
+      mockQuery.mockResolvedValue({
+        rows: [{ ip_address: '192.168.1.100', blocked_until: null }],
+      });
+
+      const result = await isIpBlocked('192.168.1.100');
+
+      expect(result).toBe(true);
+      // Query should check for NULL blocked_until
+      expect(mockQuery).toHaveBeenCalledWith(
+        expect.stringMatching(/blocked_until\s+IS\s+NULL/i),
         expect.any(Array)
       );
     });
@@ -352,6 +388,198 @@ describe('Security Middleware - Honeypot', () => {
         const diff = blockedUntil.getTime() - expectedBlockEnd.getTime();
         expect(Math.abs(diff)).toBeLessThan(5000); // Within 5 seconds
       }
+    });
+  });
+});
+
+describe('Security Middleware - Failed Login Tracking', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockQuery.mockReset();
+  });
+
+  describe('trackFailedLogin', () => {
+    it('should increment failed login counter in Redis', async () => {
+      const ip = '192.168.1.1';
+      mockRedisClient.incr.mockResolvedValue(1);
+
+      const count = await trackFailedLogin(ip);
+
+      expect(mockRedisClient.incr).toHaveBeenCalledWith(`failed_login:${ip}`);
+      expect(mockRedisClient.expire).toHaveBeenCalledWith(
+        `failed_login:${ip}`,
+        FAILED_LOGIN_TTL_SECONDS
+      );
+      expect(count).toBe(1);
+    });
+
+    it('should return incremented count on subsequent calls', async () => {
+      const ip = '192.168.1.1';
+      mockRedisClient.incr.mockResolvedValue(3);
+
+      const count = await trackFailedLogin(ip);
+
+      expect(count).toBe(3);
+    });
+
+    it('should handle Redis errors gracefully', async () => {
+      const ip = '192.168.1.1';
+      mockRedisClient.incr.mockRejectedValue(new Error('Redis error'));
+
+      const count = await trackFailedLogin(ip);
+
+      expect(count).toBe(0);
+      expect(mockLogger.error).toHaveBeenCalled();
+    });
+  });
+
+  describe('getFailedLoginCount', () => {
+    it('should return 0 when no failed attempts exist', async () => {
+      const ip = '192.168.1.1';
+      mockRedisClient.get.mockResolvedValue(null);
+
+      const count = await getFailedLoginCount(ip);
+
+      expect(count).toBe(0);
+    });
+
+    it('should return the current count from Redis', async () => {
+      const ip = '192.168.1.1';
+      mockRedisClient.get.mockResolvedValue('4');
+
+      const count = await getFailedLoginCount(ip);
+
+      expect(count).toBe(4);
+    });
+
+    it('should handle Redis errors gracefully', async () => {
+      const ip = '192.168.1.1';
+      mockRedisClient.get.mockRejectedValue(new Error('Redis error'));
+
+      const count = await getFailedLoginCount(ip);
+
+      expect(count).toBe(0);
+      expect(mockLogger.error).toHaveBeenCalled();
+    });
+  });
+
+  describe('clearFailedLogins', () => {
+    it('should delete the failed login counter from Redis', async () => {
+      const ip = '192.168.1.1';
+      mockRedisClient.del.mockResolvedValue(1);
+
+      await clearFailedLogins(ip);
+
+      expect(mockRedisClient.del).toHaveBeenCalledWith(`failed_login:${ip}`);
+    });
+
+    it('should handle Redis errors gracefully', async () => {
+      const ip = '192.168.1.1';
+      mockRedisClient.del.mockRejectedValue(new Error('Redis error'));
+
+      await expect(clearFailedLogins(ip)).resolves.not.toThrow();
+      expect(mockLogger.error).toHaveBeenCalled();
+    });
+  });
+
+  describe('getAutoBlockDuration', () => {
+    it('should return 1 hour for first offense (no previous blocks)', async () => {
+      const ip = '192.168.1.1';
+      mockQuery.mockResolvedValue({ rows: [] });
+
+      const duration = await getAutoBlockDuration(ip);
+
+      expect(duration).toBe(AUTO_BLOCK_DURATION_FIRST_MS);
+      expect(duration).toBe(60 * 60 * 1000); // 1 hour in milliseconds
+    });
+
+    it('should return 24 hours for repeat offenders', async () => {
+      const ip = '192.168.1.1';
+      mockQuery.mockResolvedValue({
+        rows: [{ ip_address: ip, blocked_until: new Date() }],
+      });
+
+      const duration = await getAutoBlockDuration(ip);
+
+      expect(duration).toBe(AUTO_BLOCK_DURATION_REPEAT_MS);
+      expect(duration).toBe(24 * 60 * 60 * 1000); // 24 hours in milliseconds
+    });
+
+    it('should query database for previous blocks', async () => {
+      const ip = '192.168.1.1';
+      mockQuery.mockResolvedValue({ rows: [] });
+
+      await getAutoBlockDuration(ip);
+
+      expect(mockQuery).toHaveBeenCalledWith(
+        expect.stringContaining('SELECT'),
+        expect.arrayContaining([ip])
+      );
+    });
+
+    it('should handle database errors gracefully by returning first offense duration', async () => {
+      const ip = '192.168.1.1';
+      mockQuery.mockRejectedValue(new Error('DB error'));
+
+      const duration = await getAutoBlockDuration(ip);
+
+      expect(duration).toBe(AUTO_BLOCK_DURATION_FIRST_MS);
+      expect(mockLogger.error).toHaveBeenCalled();
+    });
+  });
+
+  describe('blockIpAddress with duration parameter', () => {
+    it('should use provided duration when specified', async () => {
+      const ip = '192.168.1.1';
+      const customDuration = 60 * 60 * 1000; // 1 hour
+      mockQuery.mockResolvedValue({ rows: [] });
+
+      await blockIpAddress(ip, 'failed_logins', customDuration);
+
+      await waitForSetImmediate();
+      await waitForSetImmediate();
+
+      const call = mockQuery.mock.calls[0];
+      expect(call).toBeDefined();
+      const blockedUntil = call![1][2];
+      if (blockedUntil instanceof Date) {
+        const expectedBlockEnd = new Date(Date.now() + customDuration);
+        const diff = Math.abs(blockedUntil.getTime() - expectedBlockEnd.getTime());
+        expect(diff).toBeLessThan(5000); // Within 5 seconds
+      }
+    });
+
+    it('should set blocked_until to null for permanent blocks', async () => {
+      const ip = '192.168.1.1';
+      mockQuery.mockResolvedValue({ rows: [] });
+
+      await blockIpAddress(ip, 'permanent', null);
+
+      await waitForSetImmediate();
+      await waitForSetImmediate();
+
+      const call = mockQuery.mock.calls[0];
+      expect(call).toBeDefined();
+      const blockedUntil = call![1][2];
+      expect(blockedUntil).toBeNull();
+    });
+  });
+
+  describe('Constants', () => {
+    it('should have threshold of 5 failed attempts', () => {
+      expect(FAILED_LOGIN_THRESHOLD).toBe(5);
+    });
+
+    it('should have TTL of 15 minutes (900 seconds)', () => {
+      expect(FAILED_LOGIN_TTL_SECONDS).toBe(900);
+    });
+
+    it('should have first offense duration of 1 hour', () => {
+      expect(AUTO_BLOCK_DURATION_FIRST_MS).toBe(60 * 60 * 1000);
+    });
+
+    it('should have repeat offense duration of 24 hours', () => {
+      expect(AUTO_BLOCK_DURATION_REPEAT_MS).toBe(24 * 60 * 60 * 1000);
     });
   });
 });

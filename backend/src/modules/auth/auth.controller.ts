@@ -16,6 +16,13 @@ import { authenticate } from '../../middleware/auth.middleware.js';
 import { authRateLimitConfig } from '../../middleware/rateLimit.middleware.js';
 import { AuthError, NotFoundError, ValidationError } from '../../utils/errors.js';
 import { AuditAction, createAuditLoggerHelper } from '../../middleware/audit.middleware.js';
+import {
+  trackFailedLogin,
+  clearFailedLogins,
+  getAutoBlockDuration,
+  blockIpAddress,
+  FAILED_LOGIN_THRESHOLD,
+} from '../../middleware/security.middleware.js';
 
 const refreshSchema = z.object({
   refreshToken: z.string().min(1),
@@ -52,13 +59,29 @@ export async function authRoutes(fastify: FastifyInstance) {
     async (request, reply) => {
       const auditLog = createAuditLoggerHelper(request);
       const input = loginSchema.parse(request.body);
+      const ipAddress = request.ip;
 
       let loginResult;
       try {
         loginResult = await authService.login(input);
       } catch (error) {
+        // Track failed login attempt
+        const failedCount = await trackFailedLogin(ipAddress);
+
         // Log failed login attempt
         auditLog(AuditAction.LOGIN_FAILED, { email: input.email, reason: (error as Error).message });
+
+        // Auto-block IP after threshold reached
+        if (failedCount >= FAILED_LOGIN_THRESHOLD) {
+          const blockDuration = await getAutoBlockDuration(ipAddress);
+          blockIpAddress(ipAddress, 'failed_logins', blockDuration);
+          request.log.warn(
+            { ip: ipAddress, failedCount, blockDuration },
+            'IP blocked due to failed login attempts'
+          );
+          auditLog(AuditAction.IP_BLOCKED, { ip: ipAddress, reason: 'failed_logins', failedCount });
+        }
+
         throw error;
       }
 
@@ -69,7 +92,21 @@ export async function authRoutes(fastify: FastifyInstance) {
         if (input.totpCode) {
           const isValid = await authService.verify2FALogin(user.id, input.totpCode);
           if (!isValid) {
+            // Track failed 2FA attempt
+            const failedCount = await trackFailedLogin(ipAddress);
             auditLog(AuditAction.LOGIN_FAILED, { userId: user.id, reason: 'Invalid 2FA code' });
+
+            // Auto-block IP after threshold reached
+            if (failedCount >= FAILED_LOGIN_THRESHOLD) {
+              const blockDuration = await getAutoBlockDuration(ipAddress);
+              blockIpAddress(ipAddress, 'failed_logins', blockDuration);
+              request.log.warn(
+                { ip: ipAddress, failedCount, blockDuration },
+                'IP blocked due to failed 2FA attempts'
+              );
+              auditLog(AuditAction.IP_BLOCKED, { ip: ipAddress, reason: 'failed_2fa', failedCount });
+            }
+
             throw new ValidationError('Invalid 2FA code');
           }
         } else {
@@ -80,6 +117,9 @@ export async function authRoutes(fastify: FastifyInstance) {
           });
         }
       }
+
+      // Clear failed login counter on successful login
+      await clearFailedLogins(ipAddress);
 
       // Generate tokens
       const accessToken = generateAccessToken(fastify, {

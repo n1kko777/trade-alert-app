@@ -22,6 +22,9 @@ export const AuditAction = {
   PASSWORD_CHANGE: 'password_change',
   SESSION_REVOKE: 'session_revoke',
 
+  // Security actions
+  IP_BLOCKED: 'ip_blocked',
+
   // Resource access
   SIGNAL_VIEW: 'signal_view',
   PORTFOLIO_UPDATE: 'portfolio_update',
