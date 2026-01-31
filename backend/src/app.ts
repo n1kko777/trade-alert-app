@@ -7,6 +7,7 @@ import { getConfig } from './config/index.js';
 import { initLogger, getLogger } from './utils/logger.js';
 import errorHandlerPlugin from './plugins/errorHandler.js';
 import { registerRateLimitPlugin } from './middleware/rateLimit.middleware.js';
+import { registerHoneypotRoutes, createBlockedIpCheck } from './middleware/security.middleware.js';
 import { healthRoutes } from './modules/health/health.controller.js';
 import authRoutes from './modules/auth/auth.routes.js';
 
@@ -34,6 +35,7 @@ export async function buildApp(): Promise<FastifyInstance> {
 
   const app = Fastify({
     logger: loggerOptions,
+    trustProxy: true, // Trust X-Forwarded-For header for proper IP detection
   });
 
   // Register error handler plugin
@@ -56,6 +58,12 @@ export async function buildApp(): Promise<FastifyInstance> {
       'Request completed'
     );
   });
+
+  // Security: Honeypot routes (register early to catch malicious requests)
+  await registerHoneypotRoutes(app);
+
+  // Security: Check for blocked IPs on all routes
+  app.addHook('preHandler', createBlockedIpCheck());
 
   // Security headers
   await app.register(fastifyHelmet, {
