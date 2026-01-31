@@ -6,8 +6,9 @@ export type RootStackParamList = {
   Main: NavigatorScreenParams<MainTabParamList>;
   CoinDetail: { symbol: string; exchange: string };
   ChartFullscreen: { symbol: string; exchange: string; timeframe: string };
-  OrderBook: { symbol: string; exchange: string };
-  LiquidationMap: { symbol: string };
+  Charts: undefined;
+  OrderBook: { symbol?: string; exchange?: string };
+  LiquidationMap: { symbol?: string };
   AIChat: { initialSymbol?: string };
   SignalDetail: { signalId: string };
   PortfolioDetail: undefined;
@@ -15,8 +16,13 @@ export type RootStackParamList = {
   Education: undefined;
   CourseDetail: { courseId: string };
   Community: undefined;
+  News: undefined;
+  Tools: undefined;
   Profile: undefined;
   Settings: undefined;
+  Login: undefined;
+  Register: undefined;
+  Subscription: undefined;
 };
 
 export type MainTabParamList = {

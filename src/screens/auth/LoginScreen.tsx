@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -11,19 +11,25 @@ import {
   ActivityIndicator,
   Alert,
 } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useTheme } from '../../theme-context';
 import { useAuth } from '../../context/AuthContext';
 import { Theme } from '../../theme';
+import type { RootStackParamList } from '../../navigation/types';
 
-interface LoginScreenProps {
-  onNavigateToRegister: () => void;
-  onForgotPassword: () => void;
-}
+type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
-const LoginScreen: React.FC<LoginScreenProps> = ({
-  onNavigateToRegister,
-  onForgotPassword,
-}) => {
+const LoginScreen: React.FC = () => {
+  const navigation = useNavigation<NavigationProp>();
+
+  const onNavigateToRegister = useCallback(() => {
+    navigation.replace('Register');
+  }, [navigation]);
+
+  const onForgotPassword = useCallback(() => {
+    Alert.alert('Reset Password', 'Password reset functionality coming soon.');
+  }, []);
   const { theme } = useTheme();
   const { login, isLoading } = useAuth();
   const styles = createStyles(theme);

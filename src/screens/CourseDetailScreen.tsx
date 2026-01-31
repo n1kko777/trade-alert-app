@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   ScrollView,
   Text,
@@ -6,21 +6,34 @@ import {
   TouchableOpacity,
   StyleSheet,
 } from 'react-native';
+import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useTheme } from '../theme-context';
-import { Course, Lesson } from '../data/educationData';
+import { Course, Lesson, demoCourses } from '../data/educationData';
 import LessonPlayer from '../components/LessonPlayer';
+import type { RootStackParamList } from '../navigation/types';
 
-type CourseDetailScreenProps = {
-  course: Course;
-  onBack?: () => void;
-  onLessonComplete?: (lessonId: string) => void;
-};
+type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
+type RouteProps = RouteProp<RootStackParamList, 'CourseDetail'>;
 
-export default function CourseDetailScreen({
-  course,
-  onBack,
-  onLessonComplete,
-}: CourseDetailScreenProps) {
+export default function CourseDetailScreen() {
+  const navigation = useNavigation<NavigationProp>();
+  const route = useRoute<RouteProps>();
+  const { courseId } = route.params;
+
+  // Find the course by ID from demo data
+  const course = useMemo(() => {
+    return demoCourses.find(c => c.id === courseId) || demoCourses[0];
+  }, [courseId]);
+
+  const onBack = () => {
+    navigation.goBack();
+  };
+
+  const onLessonComplete = (lessonId: string) => {
+    // In production, this would update the user's progress
+    console.log('Lesson completed:', lessonId);
+  };
   const { theme, styles } = useTheme();
   const [selectedLesson, setSelectedLesson] = useState<Lesson | null>(null);
   const [completedLessons, setCompletedLessons] = useState<Set<string>>(

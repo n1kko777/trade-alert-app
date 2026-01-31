@@ -83,6 +83,7 @@ export default function LiquidationScreen() {
 
   useEffect(() => {
     loadData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleSymbolSubmit = useCallback(() => {

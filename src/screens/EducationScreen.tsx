@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   ScrollView,
   Text,
@@ -6,23 +6,29 @@ import {
   TouchableOpacity,
   StyleSheet,
 } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useTheme } from '../theme-context';
 import CourseCard from '../components/CourseCard';
 import { Course, CourseCategory, demoCourses } from '../data/educationData';
+import type { RootStackParamList } from '../navigation/types';
 
-type EducationScreenProps = {
-  onCoursePress?: (course: Course) => void;
-};
+type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
 const categories: { id: CourseCategory; label: string }[] = [
-  { id: 'all', label: 'Все' },
-  { id: 'basic', label: 'Основы' },
-  { id: 'technical', label: 'Тех. анализ' },
-  { id: 'psychology', label: 'Психология' },
-  { id: 'advanced', label: 'Продвинутый' },
+  { id: 'all', label: 'Vse' },
+  { id: 'basic', label: 'Osnovy' },
+  { id: 'technical', label: 'Teh. analiz' },
+  { id: 'psychology', label: 'Psihologia' },
+  { id: 'advanced', label: 'Prodvinutiy' },
 ];
 
-export default function EducationScreen({ onCoursePress }: EducationScreenProps) {
+export default function EducationScreen() {
+  const navigation = useNavigation<NavigationProp>();
+
+  const onCoursePress = useCallback((course: Course) => {
+    navigation.navigate('CourseDetail', { courseId: course.id });
+  }, [navigation]);
   const { theme, styles } = useTheme();
   const [selectedCategory, setSelectedCategory] = useState<CourseCategory>('all');
 

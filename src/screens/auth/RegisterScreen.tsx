@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -11,17 +11,21 @@ import {
   ActivityIndicator,
   Alert,
 } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useTheme } from '../../theme-context';
 import { useAuth } from '../../context/AuthContext';
 import { Theme } from '../../theme';
+import type { RootStackParamList } from '../../navigation/types';
 
-interface RegisterScreenProps {
-  onNavigateToLogin: () => void;
-}
+type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
-const RegisterScreen: React.FC<RegisterScreenProps> = ({
-  onNavigateToLogin,
-}) => {
+const RegisterScreen: React.FC = () => {
+  const navigation = useNavigation<NavigationProp>();
+
+  const onNavigateToLogin = useCallback(() => {
+    navigation.replace('Login');
+  }, [navigation]);
   const { theme } = useTheme();
   const { register, isLoading } = useAuth();
   const styles = createStyles(theme);

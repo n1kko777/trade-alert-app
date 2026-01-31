@@ -1,7 +1,7 @@
 import React, { useCallback } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, FlatList } from 'react-native';
 import { useTheme } from '../theme-context';
-import type { Signal } from '../services/exchanges/types';
+import type { Signal } from '../services/signals/types';
 
 interface SignalRowProps {
   signal: Signal;
