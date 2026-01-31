@@ -1,0 +1,310 @@
+import React, { useState } from 'react';
+import {
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  StyleSheet,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  ActivityIndicator,
+  Alert,
+} from 'react-native';
+import { useTheme } from '../../theme-context';
+import { useAuth } from '../../context/AuthContext';
+import { Theme } from '../../theme';
+
+interface LoginScreenProps {
+  onNavigateToRegister: () => void;
+  onForgotPassword: () => void;
+}
+
+const LoginScreen: React.FC<LoginScreenProps> = ({
+  onNavigateToRegister,
+  onForgotPassword,
+}) => {
+  const { theme } = useTheme();
+  const { login, isLoading } = useAuth();
+  const styles = createStyles(theme);
+
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+
+  const handleLogin = async () => {
+    if (!email.trim() || !password.trim()) {
+      Alert.alert('Ошибка', 'Введите email и пароль');
+      return;
+    }
+
+    try {
+      await login({ email: email.trim(), password });
+    } catch (error) {
+      Alert.alert(
+        'Ошибка входа',
+        error instanceof Error ? error.message : 'Не удалось войти'
+      );
+    }
+  };
+
+  const handleSocialLogin = (provider: 'google' | 'apple') => {
+    Alert.alert(
+      'В разработке',
+      `Вход через ${provider === 'google' ? 'Google' : 'Apple'} скоро будет доступен`
+    );
+  };
+
+  return (
+    <KeyboardAvoidingView
+      style={styles.container}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+    >
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        keyboardShouldPersistTaps="handled"
+      >
+        {/* Logo Placeholder */}
+        <View style={styles.logoContainer}>
+          <View style={styles.logoPlaceholder}>
+            <Text style={styles.logoText}>TP</Text>
+          </View>
+          <Text style={styles.appName}>TradePulse</Text>
+          <Text style={styles.tagline}>Торговые алерты в реальном времени</Text>
+        </View>
+
+        {/* Login Form */}
+        <View style={styles.form}>
+          <View style={styles.inputContainer}>
+            <Text style={styles.label}>Email</Text>
+            <TextInput
+              style={styles.input}
+              value={email}
+              onChangeText={setEmail}
+              placeholder="your@email.com"
+              placeholderTextColor={theme.colors.textPlaceholder}
+              keyboardType="email-address"
+              autoCapitalize="none"
+              autoCorrect={false}
+              editable={!isLoading}
+            />
+          </View>
+
+          <View style={styles.inputContainer}>
+            <Text style={styles.label}>Пароль</Text>
+            <TextInput
+              style={styles.input}
+              value={password}
+              onChangeText={setPassword}
+              placeholder="Введите пароль"
+              placeholderTextColor={theme.colors.textPlaceholder}
+              secureTextEntry
+              editable={!isLoading}
+            />
+          </View>
+
+          <TouchableOpacity
+            style={styles.forgotPassword}
+            onPress={onForgotPassword}
+            disabled={isLoading}
+          >
+            <Text style={styles.forgotPasswordText}>Забыли пароль?</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.loginButton, isLoading && styles.buttonDisabled]}
+            onPress={handleLogin}
+            disabled={isLoading}
+          >
+            {isLoading ? (
+              <ActivityIndicator color={theme.colors.buttonText} />
+            ) : (
+              <Text style={styles.loginButtonText}>Войти</Text>
+            )}
+          </TouchableOpacity>
+        </View>
+
+        {/* Divider */}
+        <View style={styles.dividerContainer}>
+          <View style={styles.divider} />
+          <Text style={styles.dividerText}>или</Text>
+          <View style={styles.divider} />
+        </View>
+
+        {/* Social Login */}
+        <View style={styles.socialContainer}>
+          <TouchableOpacity
+            style={styles.socialButton}
+            onPress={() => handleSocialLogin('google')}
+            disabled={isLoading}
+          >
+            <Text style={styles.socialIcon}>G</Text>
+            <Text style={styles.socialButtonText}>Google</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.socialButton}
+            onPress={() => handleSocialLogin('apple')}
+            disabled={isLoading}
+          >
+            <Text style={styles.socialIcon}>A</Text>
+            <Text style={styles.socialButtonText}>Apple</Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* Register Link */}
+        <View style={styles.registerContainer}>
+          <Text style={styles.registerText}>Нет аккаунта? </Text>
+          <TouchableOpacity onPress={onNavigateToRegister} disabled={isLoading}>
+            <Text style={styles.registerLink}>Зарегистрироваться</Text>
+          </TouchableOpacity>
+        </View>
+      </ScrollView>
+    </KeyboardAvoidingView>
+  );
+};
+
+const createStyles = (theme: Theme) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: theme.colors.appBackground,
+    },
+    scrollContent: {
+      flexGrow: 1,
+      padding: 24,
+      justifyContent: 'center',
+    },
+    logoContainer: {
+      alignItems: 'center',
+      marginBottom: 40,
+    },
+    logoPlaceholder: {
+      width: 80,
+      height: 80,
+      borderRadius: 20,
+      backgroundColor: theme.colors.accent,
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginBottom: 16,
+    },
+    logoText: {
+      fontFamily: 'SpaceGrotesk_700Bold',
+      fontSize: 32,
+      color: theme.colors.buttonText,
+    },
+    appName: {
+      fontFamily: 'SpaceGrotesk_700Bold',
+      fontSize: 28,
+      color: theme.colors.textPrimary,
+      marginBottom: 8,
+    },
+    tagline: {
+      fontFamily: 'SpaceGrotesk_400Regular',
+      fontSize: 14,
+      color: theme.colors.textSecondary,
+    },
+    form: {
+      marginBottom: 24,
+    },
+    inputContainer: {
+      marginBottom: 16,
+    },
+    label: {
+      fontFamily: 'SpaceGrotesk_500Medium',
+      fontSize: 14,
+      color: theme.colors.textSecondary,
+      marginBottom: 8,
+    },
+    input: {
+      backgroundColor: theme.colors.input,
+      borderRadius: 12,
+      paddingHorizontal: 16,
+      paddingVertical: 14,
+      fontFamily: 'SpaceGrotesk_500Medium',
+      fontSize: 16,
+      color: theme.colors.textPrimary,
+    },
+    forgotPassword: {
+      alignSelf: 'flex-end',
+      marginBottom: 24,
+    },
+    forgotPasswordText: {
+      fontFamily: 'SpaceGrotesk_500Medium',
+      fontSize: 14,
+      color: theme.colors.accent,
+    },
+    loginButton: {
+      backgroundColor: theme.colors.accent,
+      borderRadius: 14,
+      paddingVertical: 16,
+      alignItems: 'center',
+    },
+    buttonDisabled: {
+      opacity: 0.7,
+    },
+    loginButtonText: {
+      fontFamily: 'SpaceGrotesk_700Bold',
+      fontSize: 16,
+      color: theme.colors.buttonText,
+    },
+    dividerContainer: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginBottom: 24,
+    },
+    divider: {
+      flex: 1,
+      height: 1,
+      backgroundColor: theme.colors.divider,
+    },
+    dividerText: {
+      fontFamily: 'SpaceGrotesk_400Regular',
+      fontSize: 14,
+      color: theme.colors.textMuted,
+      marginHorizontal: 16,
+    },
+    socialContainer: {
+      flexDirection: 'row',
+      justifyContent: 'center',
+      gap: 16,
+      marginBottom: 32,
+    },
+    socialButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: theme.colors.card,
+      borderRadius: 12,
+      paddingVertical: 14,
+      paddingHorizontal: 24,
+      borderWidth: 1,
+      borderColor: theme.colors.cardBorder,
+    },
+    socialIcon: {
+      fontFamily: 'SpaceGrotesk_700Bold',
+      fontSize: 18,
+      color: theme.colors.textPrimary,
+      marginRight: 8,
+    },
+    socialButtonText: {
+      fontFamily: 'SpaceGrotesk_500Medium',
+      fontSize: 14,
+      color: theme.colors.textPrimary,
+    },
+    registerContainer: {
+      flexDirection: 'row',
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    registerText: {
+      fontFamily: 'SpaceGrotesk_400Regular',
+      fontSize: 14,
+      color: theme.colors.textSecondary,
+    },
+    registerLink: {
+      fontFamily: 'SpaceGrotesk_700Bold',
+      fontSize: 14,
+      color: theme.colors.accent,
+    },
+  });
+
+export default LoginScreen;
