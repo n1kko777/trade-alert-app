@@ -14,6 +14,7 @@ export {
   isAuthenticated,
   setLogoutCallback,
   triggerLogout,
+  initializeTokenCache,
 } from './client';
 
 // Configuration
@@ -24,6 +25,14 @@ export {
   ENDPOINTS,
 } from './config';
 export type { MarketQueryParams, SignalsQueryParams } from './config';
+
+// API Modules
+export { authApi, login, register, logout, refreshTokens, setup2FA, verify2FA, disable2FA, getCurrentUser } from './auth.api';
+export { marketApi, getTickers, getTicker, getOrderBook, getCandles, getLiquidations } from './market.api';
+export { signalsApi, getSignals, getSignal, getSignalStats } from './signals.api';
+export { pumpsApi, getActivePumps, getPump } from './pumps.api';
+export { portfolioApi, getPortfolio, addAsset, updateAsset, deleteAsset } from './portfolio.api';
+export { aiApi, analyzeSymbol, chat, getLimits } from './ai.api';
 
 // Types
 export type {
