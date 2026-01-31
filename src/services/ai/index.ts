@@ -1,11 +1,5 @@
+/**
+ * AI Types
+ * Type definitions for AI analysis - OpenAI integration is on the backend
+ */
 export * from './types';
-export {
-  sendMessage,
-  getCoinAnalysis,
-  setApiKey,
-  setConfig,
-  getConfig,
-  isConfigured,
-  QUICK_PROMPTS,
-  generateId,
-} from './openai';

@@ -1,4 +1,9 @@
-import type { ExchangeId } from '../exchanges/types';
+/**
+ * Liquidation Types
+ * Type definitions for liquidation heatmap data from the backend
+ */
+
+export type ExchangeId = 'binance' | 'bybit' | 'okx' | 'mexc';
 
 /**
  * Represents a single liquidation price level with volume estimates
@@ -27,17 +32,6 @@ export interface LiquidationData {
 }
 
 /**
- * Configuration for liquidation calculations
- */
-export interface LiquidationConfig {
-  leverageLevels: number[];           // Leverage levels to calculate (e.g., [2, 3, 5, 10, 25, 50, 100])
-  volumeEstimateBase: number;         // Base volume for estimates (in USD)
-  volumeDecayFactor: number;          // How much volume decreases at higher leverages
-  refreshIntervalMs: number;          // How often to refresh data
-  significantVolumeThreshold: number; // Minimum volume to display
-}
-
-/**
  * Summary statistics for liquidation risk
  */
 export interface LiquidationSummary {
@@ -48,13 +42,5 @@ export interface LiquidationSummary {
   nearestShortLevel: LiquidationLevel | null;
   highestVolumeLevel: LiquidationLevel | null;
 }
-
-export const DEFAULT_LIQUIDATION_CONFIG: LiquidationConfig = {
-  leverageLevels: [2, 3, 5, 10, 25, 50, 100],
-  volumeEstimateBase: 10000000,    // $10M base
-  volumeDecayFactor: 0.7,          // 30% less volume at each higher leverage
-  refreshIntervalMs: 30000,        // 30 seconds
-  significantVolumeThreshold: 100000, // $100K minimum
-};
 
 export const SUPPORTED_EXCHANGES: ExchangeId[] = ['binance', 'bybit'];

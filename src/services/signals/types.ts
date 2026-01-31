@@ -1,5 +1,9 @@
-import type { ExchangeId } from '../exchanges/types';
+/**
+ * Signal Types
+ * Type definitions for trading signals from the backend
+ */
 
+export type ExchangeId = 'binance' | 'bybit' | 'okx' | 'mexc';
 export type SignalDirection = 'BUY' | 'SELL';
 export type SignalStatus = 'active' | 'pending' | 'closed';
 

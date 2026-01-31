@@ -9,10 +9,47 @@ import {
   TextInput,
 } from 'react-native';
 import { useTheme } from '../theme-context';
-import { signalService, type Signal, type SignalStats, type SignalFilter } from '../services/signals';
+import { useSignals } from '../hooks/useWebSocket';
+import type { Signal, SignalStats } from '../services/signals/types';
+import type { SignalData } from '../services/websocket';
 import SignalCard from '../components/SignalCard';
 
 type TabType = 'active' | 'history';
+
+interface SignalFilter {
+  symbol?: string;
+  exchange?: string;
+  direction?: 'BUY' | 'SELL';
+}
+
+// Map SignalData from WebSocket to local Signal format
+function mapSignalDataToSignal(data: SignalData): Signal {
+  return {
+    id: data.id,
+    symbol: data.symbol,
+    exchange: 'binance' as const, // Default exchange
+    direction: data.direction.toUpperCase() as 'BUY' | 'SELL',
+    entryPrice: data.entryPrice,
+    currentPrice: data.entryPrice, // Use entry as current for now
+    takeProfit: [
+      { price: data.targetPrice, percentage: ((data.targetPrice - data.entryPrice) / data.entryPrice) * 100, hit: false },
+    ],
+    stopLoss: data.stopLoss,
+    stopLossPercentage: ((data.entryPrice - data.stopLoss) / data.entryPrice) * 100,
+    status: data.status as 'active' | 'pending' | 'closed',
+    createdAt: new Date(data.createdAt).getTime(),
+    updatedAt: Date.now(),
+    aiTriggers: [
+      { name: 'Trend Analysis', confirmed: data.confidence > 60, weight: 0.2 },
+      { name: 'Volume Confirmation', confirmed: data.confidence > 50, weight: 0.15 },
+      { name: 'Support/Resistance', confirmed: data.confidence > 70, weight: 0.2 },
+      { name: 'Momentum Indicator', confirmed: data.confidence > 55, weight: 0.15 },
+      { name: 'Market Sentiment', confirmed: data.confidence > 65, weight: 0.15 },
+      { name: 'Whale Activity', confirmed: data.confidence > 75, weight: 0.15 },
+    ],
+    confidence: data.confidence,
+  };
+}
 
 interface SignalsScreenProps {
   isPro?: boolean;
@@ -21,41 +58,52 @@ interface SignalsScreenProps {
 
 export default function SignalsScreen({ isPro = false, onUpgrade }: SignalsScreenProps) {
   const { theme } = useTheme();
-  const [signals, setSignals] = useState<Signal[]>([]);
-  const [stats, setStats] = useState<SignalStats | null>(null);
+  const { signals: signalData, isConnected } = useSignals();
   const [refreshing, setRefreshing] = useState(false);
   const [activeTab, setActiveTab] = useState<TabType>('active');
   const [filter, setFilter] = useState<SignalFilter>({});
   const [searchText, setSearchText] = useState('');
   const [showFilters, setShowFilters] = useState(false);
 
-  const loadData = useCallback(() => {
-    const allSignals = signalService.getAllSignals();
-    if (allSignals.length === 0) {
-      signalService.initializeDemo();
-    }
-    setSignals(signalService.getAllSignals());
-    setStats(signalService.getStats());
-  }, []);
+  // Map WebSocket data to Signal format
+  const signals = useMemo(() =>
+    signalData.map(mapSignalDataToSignal),
+    [signalData]
+  );
 
-  useEffect(() => {
-    loadData();
+  // Calculate stats from signals
+  const stats: SignalStats | null = useMemo(() => {
+    if (signals.length === 0) return null;
 
-    const unsubscribe = signalService.subscribe((updatedSignals) => {
-      setSignals(updatedSignals);
-      setStats(signalService.getStats());
-    });
+    const closedSignals = signals.filter(s => s.status === 'closed');
+    const activeSignals = signals.filter(s => s.status === 'active' || s.status === 'pending');
+    const winningSignals = closedSignals.filter(s => (s.profit ?? 0) > 0);
 
-    return () => unsubscribe();
-  }, [loadData]);
+    return {
+      totalSignals: signals.length,
+      activeSignals: activeSignals.length,
+      closedSignals: closedSignals.length,
+      winningSignals: winningSignals.length,
+      losingSignals: closedSignals.length - winningSignals.length,
+      winRate: closedSignals.length > 0 ? (winningSignals.length / closedSignals.length) * 100 : 0,
+      totalProfit: closedSignals.reduce((sum, s) => sum + (s.profit ?? 0), 0),
+      avgProfit: closedSignals.length > 0 ? closedSignals.reduce((sum, s) => sum + (s.profit ?? 0), 0) / closedSignals.length : 0,
+      avgWin: winningSignals.length > 0 ? winningSignals.reduce((sum, s) => sum + (s.profit ?? 0), 0) / winningSignals.length : 0,
+      avgLoss: 0,
+      bestTrade: 0,
+      worstTrade: 0,
+      profitFactor: 0,
+      avgHoldingTime: 0,
+    };
+  }, [signals]);
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
+    // WebSocket data refreshes automatically
     setTimeout(() => {
-      loadData();
       setRefreshing(false);
     }, 500);
-  }, [loadData]);
+  }, []);
 
   const filteredSignals = useMemo(() => {
     let result = signals;

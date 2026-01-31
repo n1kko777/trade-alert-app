@@ -18,8 +18,51 @@ import ActiveSignals from '../components/ActiveSignals';
 import type { RootStackParamList } from '../navigation/types';
 import type { Ticker } from '../services/exchanges/types';
 import type { Signal } from '../services/signals/types';
-import { binanceService } from '../services/exchanges/binance';
-import { signalService } from '../services/signals';
+import { useAllTickers, useSignals } from '../hooks/useWebSocket';
+import type { TickerData, SignalData } from '../services/websocket';
+
+// Map WebSocket ticker to local Ticker format
+function mapTickerData(data: TickerData): Ticker {
+  return {
+    symbol: data.symbol,
+    price: data.price,
+    priceChange24h: data.change24h,
+    priceChangePct24h: (data.change24h / (data.price - data.change24h)) * 100,
+    volume24h: data.volume24h,
+    high24h: data.high24h,
+    low24h: data.low24h,
+    lastUpdated: Date.now(),
+  };
+}
+
+// Map WebSocket signal to local Signal format
+function mapSignalData(data: SignalData): Signal {
+  return {
+    id: data.id,
+    symbol: data.symbol,
+    exchange: 'binance' as const,
+    direction: data.direction.toUpperCase() as 'BUY' | 'SELL',
+    entryPrice: data.entryPrice,
+    currentPrice: data.entryPrice,
+    takeProfit: [
+      { price: data.targetPrice, percentage: ((data.targetPrice - data.entryPrice) / data.entryPrice) * 100, hit: false },
+    ],
+    stopLoss: data.stopLoss,
+    stopLossPercentage: Math.abs((data.entryPrice - data.stopLoss) / data.entryPrice * 100),
+    status: data.status as 'active' | 'pending' | 'closed',
+    createdAt: new Date(data.createdAt).getTime(),
+    updatedAt: Date.now(),
+    aiTriggers: [
+      { name: 'Trend Analysis', confirmed: data.confidence > 60, weight: 0.2 },
+      { name: 'Volume Confirmation', confirmed: data.confidence > 50, weight: 0.15 },
+      { name: 'Support/Resistance', confirmed: data.confidence > 70, weight: 0.2 },
+      { name: 'Momentum Indicator', confirmed: data.confidence > 55, weight: 0.15 },
+      { name: 'Market Sentiment', confirmed: data.confidence > 65, weight: 0.15 },
+      { name: 'Whale Activity', confirmed: data.confidence > 75, weight: 0.15 },
+    ],
+    confidence: data.confidence,
+  };
+}
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
@@ -39,10 +82,26 @@ export default function NewDashboardScreen() {
   const { isPro } = useAuth();
 
   const [refreshing, setRefreshing] = useState(false);
-  const [hotCoins, setHotCoins] = useState<Ticker[]>([]);
-  const [signals, setSignals] = useState<Signal[]>([]);
   const [portfolioBalance] = useState(125432.50);
   const [portfolioChange] = useState(3.25);
+
+  // Get data from WebSocket hooks
+  const { allTickers, isConnected: tickersConnected } = useAllTickers();
+  const { signals: signalData, isConnected: signalsConnected } = useSignals();
+
+  // Map WebSocket data to local formats
+  const hotCoins = useMemo(() => {
+    const tickers = Array.from(allTickers.values()).map(mapTickerData);
+    return tickers
+      .sort((a, b) => b.volume24h - a.volume24h)
+      .slice(0, 10);
+  }, [allTickers]);
+
+  const signals = useMemo(() => {
+    return signalData
+      .map(mapSignalData)
+      .filter(s => s.status === 'active' || s.status === 'pending');
+  }, [signalData]);
 
   const quickAccessItems: QuickAccessItem[] = useMemo(
     () => [
@@ -71,44 +130,13 @@ export default function NewDashboardScreen() {
     [theme.colors]
   );
 
-  const loadData = useCallback(async () => {
-    try {
-      // Load hot coins - get all tickers and sort by volume
-      const allTickers = await binanceService.getAllTickers();
-      const topTickers = allTickers
-        .sort((a, b) => b.volume24h - a.volume24h)
-        .slice(0, 10);
-      setHotCoins(topTickers);
-
-      // Load signals
-      const allSignals = signalService.getAllSignals();
-      if (allSignals.length === 0) {
-        signalService.initializeDemo();
-      }
-      setSignals(signalService.getActiveSignals());
-    } catch (error) {
-      console.error('Failed to load dashboard data:', error);
-    }
-  }, []);
-
-  useEffect(() => {
-    loadData();
-
-    // Subscribe to signal updates
-    const unsubscribe = signalService.subscribe((updatedSignals) => {
-      setSignals(
-        updatedSignals.filter((s) => s.status === 'active' || s.status === 'pending')
-      );
-    });
-
-    return () => unsubscribe();
-  }, [loadData]);
-
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    await loadData();
-    setRefreshing(false);
-  }, [loadData]);
+    // WebSocket data refreshes automatically
+    setTimeout(() => {
+      setRefreshing(false);
+    }, 500);
+  }, []);
 
   const handleCoinPress = useCallback(
     (coin: Ticker) => {

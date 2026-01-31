@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback, useMemo, useRef } from 'react';
+import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -13,16 +13,9 @@ import {
 import { useTheme } from '../theme-context';
 import OrderBookDepth from '../components/OrderBookDepth';
 import WhaleTracker, { type WhaleOrder } from '../components/WhaleTracker';
-import {
-  binanceService,
-  bybitService,
-  okxService,
-  mexcService,
-  type ExchangeId,
-  type ExchangeService,
-  type OrderBook,
-  type OrderBookEntry,
-} from '../services/exchanges';
+import { apiClient, ENDPOINTS } from '../api';
+import type { ApiOrderBook, ApiTicker, OrderBookEntry as ApiOrderBookEntry } from '../api/types';
+import type { ExchangeId, OrderBook, OrderBookEntry } from '../services/exchanges/types';
 
 const EXCHANGES: { id: ExchangeId; name: string }[] = [
   { id: 'binance', name: 'Binance' },
@@ -36,20 +29,18 @@ const POPULAR_SYMBOLS = ['BTCUSDT', 'ETHUSDT', 'SOLUSDT', 'XRPUSDT', 'DOGEUSDT']
 const WHALE_THRESHOLD_USD = 100000; // $100K
 const ORDER_BOOK_DEPTH = 20;
 
-const getExchangeService = (exchangeId: ExchangeId): ExchangeService => {
-  switch (exchangeId) {
-    case 'binance':
-      return binanceService;
-    case 'bybit':
-      return bybitService;
-    case 'okx':
-      return okxService;
-    case 'mexc':
-      return mexcService;
-    default:
-      return binanceService;
-  }
-};
+// Map API order book entry to local format with cumulative total
+function mapOrderBookEntries(entries: ApiOrderBookEntry[]): OrderBookEntry[] {
+  let total = 0;
+  return entries.map(entry => {
+    total += entry.quantity;
+    return {
+      price: entry.price,
+      quantity: entry.quantity,
+      total,
+    };
+  });
+}
 
 export default function OrderBookScreen() {
   const { theme } = useTheme();
@@ -63,8 +54,6 @@ export default function OrderBookScreen() {
   const [error, setError] = useState<string | null>(null);
   const [isWebSocketConnected, setIsWebSocketConnected] = useState(false);
   const [whaleOrders, setWhaleOrders] = useState<WhaleOrder[]>([]);
-
-  const unsubscribeRef = useRef<(() => void) | null>(null);
 
   // Calculate spread
   const spread = useMemo(() => {
@@ -129,7 +118,7 @@ export default function OrderBookScreen() {
     });
   }, [selectedExchange]);
 
-  // Fetch order book data
+  // Fetch order book data from backend API
   const fetchOrderBook = useCallback(async () => {
     try {
       setError(null);
@@ -138,64 +127,36 @@ export default function OrderBookScreen() {
         : `${inputSymbol.toUpperCase()}USDT`;
       setSymbol(fullSymbol);
 
-      const service = getExchangeService(selectedExchange);
+      // Fetch ticker and order book from backend API in parallel
+      const [tickerResponse, orderBookResponse] = await Promise.all([
+        apiClient.get<ApiTicker>(ENDPOINTS.market.ticker(fullSymbol)),
+        apiClient.get<ApiOrderBook>(ENDPOINTS.market.orderbook(fullSymbol), {
+          params: { depth: ORDER_BOOK_DEPTH },
+        }),
+      ]);
 
-      // Fetch ticker for current price
-      const ticker = await service.getTicker(fullSymbol);
-      if (ticker && ticker.price) {
-        setCurrentPrice(ticker.price);
+      if (tickerResponse.data && tickerResponse.data.price) {
+        setCurrentPrice(tickerResponse.data.price);
       }
 
-      // Fetch order book
-      const book = await service.getOrderBook(fullSymbol, ORDER_BOOK_DEPTH);
+      // Map API response to local format
+      const book: OrderBook = {
+        symbol: orderBookResponse.data.symbol,
+        bids: mapOrderBookEntries(orderBookResponse.data.bids),
+        asks: mapOrderBookEntries(orderBookResponse.data.asks),
+        lastUpdated: orderBookResponse.data.timestamp,
+      };
+
       setOrderBook(book);
+      setIsWebSocketConnected(false); // No real-time updates from REST API
 
       // Detect whale orders
-      if (ticker && ticker.price) {
-        detectWhales(book, ticker.price);
+      if (tickerResponse.data && tickerResponse.data.price) {
+        detectWhales(book, tickerResponse.data.price);
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load order book');
       setOrderBook(null);
-    }
-  }, [inputSymbol, selectedExchange, detectWhales]);
-
-  // Subscribe to WebSocket updates
-  const subscribeToOrderBook = useCallback(() => {
-    // Cleanup previous subscription
-    if (unsubscribeRef.current) {
-      unsubscribeRef.current();
-      unsubscribeRef.current = null;
-    }
-
-    try {
-      const fullSymbol = inputSymbol.toUpperCase().endsWith('USDT')
-        ? inputSymbol.toUpperCase()
-        : `${inputSymbol.toUpperCase()}USDT`;
-
-      const service = getExchangeService(selectedExchange);
-
-      unsubscribeRef.current = service.subscribeOrderBook(
-        fullSymbol,
-        (book) => {
-          setOrderBook(book);
-          setIsWebSocketConnected(true);
-
-          // Update current price from best bid/ask midpoint
-          if (book.bids.length > 0 && book.asks.length > 0) {
-            const midPrice = (book.bids[0].price + book.asks[0].price) / 2;
-            setCurrentPrice(midPrice);
-            detectWhales(book, midPrice);
-          }
-        },
-        (err) => {
-          console.warn('WebSocket error:', err);
-          setIsWebSocketConnected(false);
-        }
-      );
-    } catch (err) {
-      console.warn('Failed to subscribe to order book:', err);
-      setIsWebSocketConnected(false);
     }
   }, [inputSymbol, selectedExchange, detectWhales]);
 
@@ -204,28 +165,17 @@ export default function OrderBookScreen() {
     setLoading(true);
     await fetchOrderBook();
     setLoading(false);
-    subscribeToOrderBook();
-  }, [fetchOrderBook, subscribeToOrderBook]);
+  }, [fetchOrderBook]);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
     await fetchOrderBook();
-    subscribeToOrderBook();
     setRefreshing(false);
-  }, [fetchOrderBook, subscribeToOrderBook]);
+  }, [fetchOrderBook]);
 
   useEffect(() => {
     loadData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  // Cleanup on unmount
-  useEffect(() => {
-    return () => {
-      if (unsubscribeRef.current) {
-        unsubscribeRef.current();
-      }
-    };
   }, []);
 
   const handleSymbolSubmit = useCallback(() => {

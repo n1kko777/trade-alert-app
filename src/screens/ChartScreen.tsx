@@ -13,14 +13,40 @@ import {
 import { useTheme } from '../theme-context';
 import TradingChart from '../components/TradingChart';
 import TimeframeSelector, { type Timeframe } from '../components/TimeframeSelector';
-import { binanceService } from '../services/exchanges/binance';
-import { bybitService } from '../services/exchanges/bybit';
-import type { ExchangeId, Candle, Ticker } from '../services/exchanges/types';
+import { apiClient, ENDPOINTS } from '../api';
+import type { ApiTicker, ApiCandle } from '../api/types';
+import type { Candle, Ticker, ExchangeId } from '../services/exchanges/types';
 import { Ionicons } from '@expo/vector-icons';
 
 const SUPPORTED_EXCHANGES: ExchangeId[] = ['binance', 'bybit'];
 const POPULAR_SYMBOLS = ['BTC', 'ETH', 'SOL'];
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
+
+// Map API ticker to local format
+function mapApiTicker(data: ApiTicker): Ticker {
+  return {
+    symbol: data.symbol,
+    price: data.price,
+    priceChange24h: data.change24h,
+    priceChangePct24h: (data.change24h / (data.price - data.change24h)) * 100,
+    volume24h: data.volume24h,
+    high24h: data.high24h,
+    low24h: data.low24h,
+    lastUpdated: Date.now(),
+  };
+}
+
+// Map API candle to local format
+function mapApiCandle(data: ApiCandle): Candle {
+  return {
+    time: data.openTime,
+    open: data.open,
+    high: data.high,
+    low: data.low,
+    close: data.close,
+    volume: data.volume,
+  };
+}
 
 export default function ChartScreen() {
   const { theme } = useTheme();
@@ -36,10 +62,6 @@ export default function ChartScreen() {
   const [error, setError] = useState<string | null>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
 
-  const getService = useCallback(() => {
-    return selectedExchange === 'binance' ? binanceService : bybitService;
-  }, [selectedExchange]);
-
   const fetchData = useCallback(async () => {
     try {
       setError(null);
@@ -48,22 +70,25 @@ export default function ChartScreen() {
         : `${inputSymbol.toUpperCase()}USDT`;
       setSymbol(fullSymbol);
 
-      const service = getService();
-
-      // Fetch candles and ticker in parallel
-      const [candleData, tickerData] = await Promise.all([
-        service.getCandles(fullSymbol, timeframe, 200),
-        service.getTicker(fullSymbol),
+      // Fetch candles and ticker from backend API in parallel
+      const [candlesResponse, tickerResponse] = await Promise.all([
+        apiClient.get<ApiCandle[]>(
+          `${ENDPOINTS.market.candles}/${fullSymbol}`,
+          { params: { interval: timeframe, limit: 200 } }
+        ),
+        apiClient.get<ApiTicker>(
+          `${ENDPOINTS.market.ticker}/${fullSymbol}`
+        ),
       ]);
 
-      setCandles(candleData);
-      setTicker(tickerData);
+      setCandles(candlesResponse.data.map(mapApiCandle));
+      setTicker(mapApiTicker(tickerResponse.data));
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load chart data');
       setCandles([]);
       setTicker(null);
     }
-  }, [inputSymbol, timeframe, getService]);
+  }, [inputSymbol, timeframe]);
 
   const loadData = useCallback(async () => {
     setLoading(true);

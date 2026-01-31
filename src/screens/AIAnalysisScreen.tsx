@@ -13,17 +13,19 @@ import {
 import { useTheme } from '../theme-context';
 import AIChat from '../components/AIChat';
 import AnalysisCard from '../components/AnalysisCard';
-import {
-  ChatMessage,
-  AnalysisResponse,
-  sendMessage,
-  getCoinAnalysis,
-  isConfigured,
-  generateId,
-  QUICK_PROMPTS,
-} from '../services/ai';
+import { apiClient, ENDPOINTS } from '../api';
+import type { ChatRequest, ChatResponse, ApiAnalysis, ChatMessage as ApiChatMessage } from '../api/types';
+import type { ChatMessage, AnalysisResponse } from '../services/ai/types';
 
-type QuickAction = keyof typeof QUICK_PROMPTS;
+type QuickAction = 'BTC' | 'ETH' | 'SOL' | 'BNB' | 'XRP';
+
+const QUICK_PROMPTS: Record<QuickAction, string> = {
+  BTC: 'Анализ BTC',
+  ETH: 'Анализ ETH',
+  SOL: 'Анализ SOL',
+  BNB: 'Анализ BNB',
+  XRP: 'Анализ XRP',
+};
 
 const QUICK_ACTIONS: { key: QuickAction; label: string }[] = [
   { key: 'BTC', label: 'Анализ BTC' },
@@ -32,6 +34,10 @@ const QUICK_ACTIONS: { key: QuickAction; label: string }[] = [
   { key: 'BNB', label: 'Анализ BNB' },
   { key: 'XRP', label: 'Анализ XRP' },
 ];
+
+function generateId(): string {
+  return `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+}
 
 export default function AIAnalysisScreen() {
   const { theme } = useTheme();
@@ -56,16 +62,6 @@ export default function AIAnalysisScreen() {
   const handleSendMessage = useCallback(async (text: string) => {
     if (!text.trim()) return;
 
-    // Check if API is configured
-    if (!isConfigured()) {
-      Alert.alert(
-        'API не настроен',
-        'Для использования GPT анализа необходимо настроить OpenAI API ключ в настройках приложения.',
-        [{ text: 'OK' }]
-      );
-      return;
-    }
-
     // Add user message
     addMessage('user', text.trim());
     setInputText('');
@@ -73,51 +69,74 @@ export default function AIAnalysisScreen() {
     setShowAnalysisCard(false);
 
     try {
-      const { response, error } = await sendMessage(text.trim(), messages);
+      // Prepare chat request for backend API (filter to only user/assistant messages)
+      const chatMessages: ApiChatMessage[] = messages
+        .filter(m => m.role === 'user' || m.role === 'assistant')
+        .map(m => ({
+          role: m.role as 'user' | 'assistant',
+          content: m.content,
+        }));
+      chatMessages.push({ role: 'user', content: text.trim() });
 
-      if (error) {
-        addMessage('assistant', `Ошибка: ${error.message}`);
+      const response = await apiClient.post<ChatResponse>(
+        ENDPOINTS.ai.chat,
+        { messages: chatMessages } as ChatRequest
+      );
+
+      if (response.data.success && response.data.data) {
+        addMessage('assistant', response.data.data.message);
       } else {
-        addMessage('assistant', response);
+        addMessage('assistant', 'Не удалось получить ответ от AI.');
       }
-    } catch (err) {
-      addMessage('assistant', 'Произошла неизвестная ошибка. Попробуйте позже.');
+    } catch (err: any) {
+      const errorMessage = err?.message || 'Произошла неизвестная ошибка. Попробуйте позже.';
+      addMessage('assistant', `Ошибка: ${errorMessage}`);
     } finally {
       setIsTyping(false);
     }
   }, [messages, addMessage]);
 
   const handleQuickAction = useCallback(async (action: QuickAction) => {
-    if (!isConfigured()) {
-      Alert.alert(
-        'API не настроен',
-        'Для использования GPT анализа необходимо настроить OpenAI API ключ в настройках приложения.',
-        [{ text: 'OK' }]
-      );
-      return;
-    }
-
     const prompt = QUICK_PROMPTS[action];
     addMessage('user', prompt);
     setIsTyping(true);
     setShowAnalysisCard(false);
 
     try {
-      const { analysis, error } = await getCoinAnalysis({
-        symbol: action,
-        includeTechnical: true,
-      });
+      // Fetch analysis from backend API
+      const response = await apiClient.get<{ success: boolean; data: ApiAnalysis }>(
+        `${ENDPOINTS.ai.analyze}/${action}USDT`
+      );
 
-      if (error) {
-        addMessage('assistant', `Ошибка анализа: ${error.message}`);
-      } else if (analysis) {
-        // Add AI response message
+      if (response.data.success && response.data.data) {
+        const apiAnalysis = response.data.data;
+
+        // Map API response to local AnalysisResponse format
+        const analysis: AnalysisResponse = {
+          symbol: apiAnalysis.symbol,
+          summary: apiAnalysis.analysis.summary,
+          technicalAnalysis: apiAnalysis.analysis.keyPoints.join('\n'),
+          keyLevels: {
+            support: [],
+            resistance: [],
+          },
+          recommendation: apiAnalysis.analysis.sentiment === 'bullish' ? 'BUY' :
+                          apiAnalysis.analysis.sentiment === 'bearish' ? 'SELL' : 'HOLD',
+          confidence: apiAnalysis.analysis.confidence,
+          reasoning: apiAnalysis.analysis.recommendation,
+          timestamp: new Date(apiAnalysis.generatedAt).getTime(),
+          rawResponse: apiAnalysis.analysis.summary,
+        };
+
         addMessage('assistant', analysis.rawResponse || analysis.summary);
         setLastAnalysis(analysis);
         setShowAnalysisCard(true);
+      } else {
+        addMessage('assistant', 'Не удалось получить анализ.');
       }
-    } catch (err) {
-      addMessage('assistant', 'Произошла ошибка при анализе. Попробуйте позже.');
+    } catch (err: any) {
+      const errorMessage = err?.message || 'Произошла ошибка при анализе. Попробуйте позже.';
+      addMessage('assistant', `Ошибка анализа: ${errorMessage}`);
     } finally {
       setIsTyping(false);
     }

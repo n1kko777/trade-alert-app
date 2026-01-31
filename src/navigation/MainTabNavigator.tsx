@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useMemo } from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../theme-context';
@@ -11,8 +11,8 @@ import SignalsScreen from '../screens/SignalsScreen';
 import PortfolioScreen from '../screens/PortfolioScreen';
 import MoreScreen from '../screens/MoreScreen';
 
-// Services
-import { signalService } from '../services/signals';
+// Hooks
+import { useSignals } from '../hooks/useWebSocket';
 import { useAuth } from '../context/AuthContext';
 
 const Tab = createBottomTabNavigator<MainTabParamList>();
@@ -39,29 +39,12 @@ const getTabIcon = (routeName: string, focused: boolean): IoniconsName => {
 export default function MainTabNavigator() {
   const { theme, styles } = useTheme();
   const { isPro } = useAuth();
-  const [activeSignalsCount, setActiveSignalsCount] = useState(0);
+  const { signals } = useSignals();
 
-  useEffect(() => {
-    // Initialize signal service with demo data if empty
-    const signals = signalService.getAllSignals();
-    if (signals.length === 0) {
-      signalService.initializeDemo();
-    }
-
-    // Get initial active signals count
-    const activeSignals = signalService.getActiveSignals();
-    setActiveSignalsCount(activeSignals.length);
-
-    // Subscribe to signal updates
-    const unsubscribe = signalService.subscribe((updatedSignals) => {
-      const activeCount = updatedSignals.filter(
-        (s) => s.status === 'active' || s.status === 'pending'
-      ).length;
-      setActiveSignalsCount(activeCount);
-    });
-
-    return () => unsubscribe();
-  }, []);
+  // Count active signals from WebSocket data
+  const activeSignalsCount = useMemo(() => {
+    return signals.filter(s => s.status === 'active').length;
+  }, [signals]);
 
   return (
     <Tab.Navigator

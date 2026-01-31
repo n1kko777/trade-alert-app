@@ -1,36 +1,62 @@
 import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import { View, Text, FlatList, StyleSheet, RefreshControl } from 'react-native';
 import { useTheme } from '../theme-context';
-import { pumpDetector, type PumpEvent } from '../services/pumps';
+import { usePumps } from '../hooks/useWebSocket';
+import type { PumpData } from '../services/websocket';
+
+// Map PumpData from WebSocket to local display format
+interface PumpEvent {
+  id: string;
+  symbol: string;
+  exchange: string;
+  currentPrice: number;
+  changePct: number;
+  peakChangePct: number;
+  peakPrice: number;
+  startTime: number;
+  status: 'active' | 'cooling' | 'ended';
+}
+
+function mapPumpDataToEvent(pump: PumpData, index: number): PumpEvent {
+  return {
+    id: `${pump.symbol}-${pump.startedAt}-${index}`,
+    symbol: pump.symbol,
+    exchange: pump.exchanges[0] || 'unknown',
+    currentPrice: pump.currentPrice,
+    changePct: pump.priceChange,
+    peakChangePct: pump.priceChange, // Use current as peak for now
+    peakPrice: pump.currentPrice,
+    startTime: new Date(pump.startedAt).getTime(),
+    status: 'active',
+  };
+}
 
 export default function PumpsScreen() {
   const { theme } = useTheme();
-  const [pumps, setPumps] = useState<PumpEvent[]>([]);
-  const [refreshing, setRefreshing] = useState(false);
+  const { pumps: pumpData, isConnected, connectionStatus } = usePumps();
   const [, setTick] = useState(0);
 
+  const pumps = useMemo(() =>
+    pumpData.map((p, i) => mapPumpDataToEvent(p, i)),
+    [pumpData]
+  );
+
+  // Update time display every minute
   useEffect(() => {
-    setPumps(pumpDetector.getAllPumps());
-
-    const unsubscribe = pumpDetector.onPump(() => {
-      setPumps(pumpDetector.getAllPumps());
-    });
-
-    // Update time display every minute
     const interval = setInterval(() => {
       setTick(t => t + 1);
     }, 60000);
 
     return () => {
-      unsubscribe();
       clearInterval(interval);
     };
   }, []);
 
+  const [refreshing, setRefreshing] = useState(false);
   const onRefresh = useCallback(() => {
     setRefreshing(true);
+    // WebSocket data refreshes automatically
     setTimeout(() => {
-      setPumps(pumpDetector.getAllPumps());
       setRefreshing(false);
     }, 300);
   }, []);

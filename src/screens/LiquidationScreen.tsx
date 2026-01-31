@@ -11,19 +11,56 @@ import {
 } from 'react-native';
 import { useTheme } from '../theme-context';
 import LiquidationChart from '../components/LiquidationChart';
+import { apiClient, ENDPOINTS } from '../api';
+import type { ApiLiquidationMap } from '../api/types';
 import {
-  liquidationService,
-  calculateLiquidationSummary,
   formatVolume,
-  type LiquidationData,
+  type LiquidationLevel,
   type LiquidationSummary,
+  type ExchangeId,
   SUPPORTED_EXCHANGES,
 } from '../services/liquidations';
-import type { ExchangeId } from '../services/exchanges/types';
-import { binanceService } from '../services/exchanges/binance';
-import { bybitService } from '../services/exchanges/bybit';
 
 const POPULAR_SYMBOLS = ['BTCUSDT', 'ETHUSDT', 'SOLUSDT', 'XRPUSDT', 'DOGEUSDT'];
+
+// Map API response to local data format
+interface LiquidationData {
+  symbol: string;
+  exchange: ExchangeId;
+  currentPrice: number;
+  levels: LiquidationLevel[];
+  totalLongVolume: number;
+  totalShortVolume: number;
+  lastUpdated: number;
+}
+
+function calculateLiquidationSummary(levels: LiquidationLevel[]): LiquidationSummary {
+  const longLevels = levels.filter(l => l.type === 'long');
+  const shortLevels = levels.filter(l => l.type === 'short');
+
+  const totalLongVolume = longLevels.reduce((sum, l) => sum + l.longVolume, 0);
+  const totalShortVolume = shortLevels.reduce((sum, l) => sum + l.shortVolume, 0);
+
+  const nearestLong = longLevels.length > 0
+    ? longLevels.reduce((min, l) => l.distancePercent < min.distancePercent ? l : min)
+    : null;
+  const nearestShort = shortLevels.length > 0
+    ? shortLevels.reduce((min, l) => l.distancePercent < min.distancePercent ? l : min)
+    : null;
+
+  const highestVolume = levels.length > 0
+    ? levels.reduce((max, l) => l.totalVolume > max.totalVolume ? l : max)
+    : null;
+
+  return {
+    totalVolumeAtRisk: totalLongVolume + totalShortVolume,
+    longVolumeAtRisk: totalLongVolume,
+    shortVolumeAtRisk: totalShortVolume,
+    nearestLongLevel: nearestLong,
+    nearestShortLevel: nearestShort,
+    highestVolumeLevel: highestVolume,
+  };
+}
 
 export default function LiquidationScreen() {
   const { theme } = useTheme();
@@ -48,20 +85,47 @@ export default function LiquidationScreen() {
         : `${inputSymbol.toUpperCase()}USDT`;
       setSymbol(fullSymbol);
 
-      // Fetch current price from exchange
-      const service = selectedExchange === 'binance' ? binanceService : bybitService;
-      const ticker = await service.getTicker(fullSymbol);
-
-      if (!ticker || !ticker.price) {
-        throw new Error('Could not fetch price');
-      }
-
-      // Calculate liquidation levels
-      const data = liquidationService.updatePrice(
-        fullSymbol,
-        selectedExchange,
-        ticker.price
+      // Fetch liquidation data from backend API
+      const response = await apiClient.get<ApiLiquidationMap>(
+        `${ENDPOINTS.market.liquidations}/${fullSymbol}`
       );
+
+      const apiData = response.data;
+
+      // Map API response to local format
+      const levels: LiquidationLevel[] = apiData.levels.map(level => ({
+        price: level.longLiquidation, // Use long liquidation as price
+        longVolume: 1000000 / level.leverage, // Estimate volume based on leverage
+        shortVolume: 1000000 / level.leverage,
+        totalVolume: 2000000 / level.leverage,
+        leverage: level.leverage,
+        type: 'long' as const,
+        distancePercent: ((apiData.currentPrice - level.longLiquidation) / apiData.currentPrice) * 100,
+      }));
+
+      // Add short levels
+      apiData.levels.forEach(level => {
+        levels.push({
+          price: level.shortLiquidation,
+          longVolume: 0,
+          shortVolume: 1000000 / level.leverage,
+          totalVolume: 1000000 / level.leverage,
+          leverage: level.leverage,
+          type: 'short' as const,
+          distancePercent: ((level.shortLiquidation - apiData.currentPrice) / apiData.currentPrice) * 100,
+        });
+      });
+
+      const data: LiquidationData = {
+        symbol: apiData.symbol,
+        exchange: selectedExchange,
+        currentPrice: apiData.currentPrice,
+        levels: levels.sort((a, b) => b.price - a.price),
+        totalLongVolume: levels.filter(l => l.type === 'long').reduce((s, l) => s + l.longVolume, 0),
+        totalShortVolume: levels.filter(l => l.type === 'short').reduce((s, l) => s + l.shortVolume, 0),
+        lastUpdated: Date.now(),
+      };
+
       setLiquidationData(data);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load data');
