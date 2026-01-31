@@ -13,6 +13,7 @@ import { healthRoutes } from './modules/health/health.controller.js';
 import authRoutes from './modules/auth/auth.routes.js';
 import marketRoutes from './modules/market/market.routes.js';
 import pumpsRoutes from './modules/pumps/pumps.routes.js';
+import signalsRoutes from './modules/signals/signals.routes.js';
 import { registerWebSocketServer } from './websocket/index.js';
 
 export async function buildApp(): Promise<FastifyInstance> {
@@ -105,6 +106,9 @@ export async function buildApp(): Promise<FastifyInstance> {
 
   // Pump detection routes
   await app.register(pumpsRoutes);
+
+  // Signal routes
+  await app.register(signalsRoutes);
 
   // WebSocket server
   await app.register(fastifyWebsocket);

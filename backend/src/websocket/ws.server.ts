@@ -187,7 +187,7 @@ export function broadcastTickers(tickers: AggregatedTicker[]): void {
 export function broadcastSignal(signal: {
   id: string;
   symbol: string;
-  direction: 'long' | 'short';
+  direction: 'buy' | 'sell';
   confidence: number;
   timestamp: number;
 }): void {
