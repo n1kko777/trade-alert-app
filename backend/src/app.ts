@@ -12,6 +12,7 @@ import { registerHoneypotRoutes, createBlockedIpCheck } from './middleware/secur
 import { healthRoutes } from './modules/health/health.controller.js';
 import authRoutes from './modules/auth/auth.routes.js';
 import marketRoutes from './modules/market/market.routes.js';
+import pumpsRoutes from './modules/pumps/pumps.routes.js';
 import { registerWebSocketServer } from './websocket/index.js';
 
 export async function buildApp(): Promise<FastifyInstance> {
@@ -101,6 +102,9 @@ export async function buildApp(): Promise<FastifyInstance> {
 
   // Market data routes
   await app.register(marketRoutes);
+
+  // Pump detection routes
+  await app.register(pumpsRoutes);
 
   // WebSocket server
   await app.register(fastifyWebsocket);

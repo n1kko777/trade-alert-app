@@ -4,6 +4,11 @@ import {
   stopPriceAggregatorJob,
   isPriceAggregatorJobRunning,
 } from './priceAggregator.job.js';
+import {
+  startPumpScannerJob,
+  stopPumpScannerJob,
+  isPumpScannerJobRunning,
+} from './pumpScanner.job.js';
 
 /**
  * Start all background jobs
@@ -13,6 +18,7 @@ export function startAllJobs(): void {
   logger.info('Starting background jobs...');
 
   startPriceAggregatorJob();
+  startPumpScannerJob();
 
   logger.info('All background jobs started');
 }
@@ -25,6 +31,7 @@ export function stopAllJobs(): void {
   logger.info('Stopping background jobs...');
 
   stopPriceAggregatorJob();
+  stopPumpScannerJob();
 
   logger.info('All background jobs stopped');
 }
@@ -35,6 +42,7 @@ export function stopAllJobs(): void {
 export function getJobsStatus(): Record<string, boolean> {
   return {
     priceAggregator: isPriceAggregatorJobRunning(),
+    pumpScanner: isPumpScannerJobRunning(),
   };
 }
 
@@ -44,3 +52,9 @@ export {
   stopPriceAggregatorJob,
   isPriceAggregatorJobRunning,
 } from './priceAggregator.job.js';
+
+export {
+  startPumpScannerJob,
+  stopPumpScannerJob,
+  isPumpScannerJobRunning,
+} from './pumpScanner.job.js';
