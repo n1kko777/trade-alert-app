@@ -15,6 +15,7 @@ import {
 import { authenticate } from '../../middleware/auth.middleware.js';
 import { authRateLimitConfig } from '../../middleware/rateLimit.middleware.js';
 import { AuthError, NotFoundError, ValidationError } from '../../utils/errors.js';
+import { AuditAction, createAuditLoggerHelper } from '../../middleware/audit.middleware.js';
 
 const refreshSchema = z.object({
   refreshToken: z.string().min(1),
@@ -30,10 +31,12 @@ export async function authRoutes(fastify: FastifyInstance) {
     '/api/v1/auth/register',
     { config: authRateLimitConfig },
     async (request, reply) => {
+      const auditLog = createAuditLoggerHelper(request);
       const input = registerSchema.parse(request.body);
       const user = await authService.register(input);
 
       request.log.info({ userId: user.id }, 'User registered');
+      auditLog(AuditAction.REGISTER, { userId: user.id, email: user.email });
 
       return reply.status(201).send({
         message: 'Registration successful',
@@ -47,14 +50,26 @@ export async function authRoutes(fastify: FastifyInstance) {
     '/api/v1/auth/login',
     { config: authRateLimitConfig },
     async (request, reply) => {
+      const auditLog = createAuditLoggerHelper(request);
       const input = loginSchema.parse(request.body);
-      const { user, requires2FA } = await authService.login(input);
+
+      let loginResult;
+      try {
+        loginResult = await authService.login(input);
+      } catch (error) {
+        // Log failed login attempt
+        auditLog(AuditAction.LOGIN_FAILED, { email: input.email, reason: (error as Error).message });
+        throw error;
+      }
+
+      const { user, requires2FA } = loginResult;
 
       if (requires2FA) {
         // If TOTP code is provided, verify it
         if (input.totpCode) {
           const isValid = await authService.verify2FALogin(user.id, input.totpCode);
           if (!isValid) {
+            auditLog(AuditAction.LOGIN_FAILED, { userId: user.id, reason: 'Invalid 2FA code' });
             throw new ValidationError('Invalid 2FA code');
           }
         } else {
@@ -83,6 +98,7 @@ export async function authRoutes(fastify: FastifyInstance) {
       await saveRefreshToken(user.id, refreshToken, deviceInfo);
 
       request.log.info({ userId: user.id }, 'User logged in');
+      auditLog(AuditAction.LOGIN_SUCCESS, { userId: user.id });
 
       return reply.send({
         message: 'Login successful',
@@ -100,6 +116,7 @@ export async function authRoutes(fastify: FastifyInstance) {
     '/api/v1/auth/refresh',
     { config: authRateLimitConfig },
     async (request, reply) => {
+      const auditLog = createAuditLoggerHelper(request);
       const { refreshToken } = refreshSchema.parse(request.body);
 
       // Validate the refresh token
@@ -135,6 +152,7 @@ export async function authRoutes(fastify: FastifyInstance) {
       await saveRefreshToken(user.id, newRefreshToken, deviceInfo);
 
       request.log.info({ userId: user.id }, 'Token refreshed');
+      auditLog(AuditAction.TOKEN_REFRESH, { userId: user.id });
 
       return reply.send({
         message: 'Token refreshed',
@@ -150,11 +168,13 @@ export async function authRoutes(fastify: FastifyInstance) {
   fastify.post<{ Body: { refreshToken: string } }>(
     '/api/v1/auth/logout',
     async (request, reply) => {
+      const auditLog = createAuditLoggerHelper(request);
       const { refreshToken } = logoutSchema.parse(request.body);
 
       await revokeRefreshToken(refreshToken);
 
       request.log.info('User logged out');
+      auditLog(AuditAction.LOGOUT);
 
       return reply.send({
         message: 'Logout successful',
@@ -205,6 +225,7 @@ export async function authRoutes(fastify: FastifyInstance) {
     '/api/v1/user/sessions/:id',
     { preHandler: [authenticate] },
     async (request, reply) => {
+      const auditLog = createAuditLoggerHelper(request);
       const { id } = request.params;
       const revoked = await revokeSession(request.user.userId, id);
 
@@ -213,6 +234,7 @@ export async function authRoutes(fastify: FastifyInstance) {
       }
 
       request.log.info({ sessionId: id }, 'Session revoked');
+      auditLog(AuditAction.SESSION_REVOKE, { sessionId: id });
 
       return reply.send({
         message: 'Session revoked',
@@ -225,9 +247,11 @@ export async function authRoutes(fastify: FastifyInstance) {
     '/api/v1/auth/2fa/setup',
     { preHandler: [authenticate] },
     async (request, reply) => {
+      const auditLog = createAuditLoggerHelper(request);
       const { secret, uri } = await authService.setup2FA(request.user.userId);
 
       request.log.info({ userId: request.user.userId }, '2FA setup initiated');
+      auditLog(AuditAction.TOTP_SETUP);
 
       return reply.send({
         message: '2FA setup initiated',
@@ -242,11 +266,13 @@ export async function authRoutes(fastify: FastifyInstance) {
     '/api/v1/auth/2fa/verify',
     { preHandler: [authenticate] },
     async (request, reply) => {
+      const auditLog = createAuditLoggerHelper(request);
       const { code } = totpVerifySchema.parse(request.body);
 
       await authService.verify2FASetup(request.user.userId, code);
 
       request.log.info({ userId: request.user.userId }, '2FA enabled');
+      auditLog(AuditAction.TOTP_VERIFY);
 
       return reply.send({
         message: '2FA enabled successfully',
@@ -259,11 +285,13 @@ export async function authRoutes(fastify: FastifyInstance) {
     '/api/v1/auth/2fa/disable',
     { preHandler: [authenticate] },
     async (request, reply) => {
+      const auditLog = createAuditLoggerHelper(request);
       const { code } = totpVerifySchema.parse(request.body);
 
       await authService.disable2FA(request.user.userId, code);
 
       request.log.info({ userId: request.user.userId }, '2FA disabled');
+      auditLog(AuditAction.TOTP_DISABLE);
 
       return reply.send({
         message: '2FA disabled successfully',
