@@ -15,6 +15,7 @@ import marketRoutes from './modules/market/market.routes.js';
 import pumpsRoutes from './modules/pumps/pumps.routes.js';
 import signalsRoutes from './modules/signals/signals.routes.js';
 import portfolioRoutes from './modules/portfolio/portfolio.routes.js';
+import aiRoutes from './modules/ai/ai.routes.js';
 import { registerWebSocketServer } from './websocket/index.js';
 
 export async function buildApp(): Promise<FastifyInstance> {
@@ -113,6 +114,9 @@ export async function buildApp(): Promise<FastifyInstance> {
 
   // Portfolio routes
   await app.register(portfolioRoutes);
+
+  // AI routes
+  await app.register(aiRoutes);
 
   // WebSocket server
   await app.register(fastifyWebsocket);

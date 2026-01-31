@@ -28,6 +28,7 @@
     "fastify": "^4.28.1",
     "fastify-plugin": "^4.5.1",
     "node-cron": "^3.0.3",
+    "openai": "^6.17.0",
     "otplib": "^12.0.1",
     "pg": "^8.12.0",
     "pino": "^8.21.0",
