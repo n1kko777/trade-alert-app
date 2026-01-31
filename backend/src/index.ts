@@ -3,6 +3,7 @@ import { loadConfig } from './config/index.js';
 import { connectDatabase, closeDatabase } from './config/database.js';
 import { connectRedis, closeRedis } from './config/redis.js';
 import { buildApp } from './app.js';
+import { startAllJobs, stopAllJobs } from './jobs/index.js';
 
 async function main(): Promise<void> {
   // Load and validate configuration
@@ -19,11 +20,15 @@ async function main(): Promise<void> {
   // Build the Fastify app
   const app = await buildApp();
 
+  // Start background jobs
+  startAllJobs();
+
   // Graceful shutdown handlers
   const signals: NodeJS.Signals[] = ['SIGINT', 'SIGTERM'];
   signals.forEach((signal) => {
     process.on(signal, async () => {
       app.log.info(`Received ${signal}, shutting down gracefully...`);
+      stopAllJobs();
       await app.close();
       await closeRedis();
       await closeDatabase();
