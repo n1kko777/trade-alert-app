@@ -10,6 +10,7 @@ import { registerRateLimitPlugin } from './middleware/rateLimit.middleware.js';
 import { registerHoneypotRoutes, createBlockedIpCheck } from './middleware/security.middleware.js';
 import { healthRoutes } from './modules/health/health.controller.js';
 import authRoutes from './modules/auth/auth.routes.js';
+import marketRoutes from './modules/market/market.routes.js';
 
 export async function buildApp(): Promise<FastifyInstance> {
   const config = getConfig();
@@ -95,6 +96,9 @@ export async function buildApp(): Promise<FastifyInstance> {
 
   // Auth routes
   await app.register(authRoutes);
+
+  // Market data routes
+  await app.register(marketRoutes);
 
   logger.info('Application built successfully');
 
