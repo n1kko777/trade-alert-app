@@ -16,6 +16,7 @@ import './src/background/task';
 import createStyles from './src/styles';
 import { ThemeProvider } from './src/theme-context';
 import { AuthProvider } from './src/context/AuthContext';
+import { WebSocketProvider } from './src/context/WebSocketContext';
 import { getTheme } from './src/theme';
 import AppNavigator from './src/navigation/AppNavigator';
 
@@ -61,23 +62,25 @@ export default function App() {
 
   return (
     <AuthProvider>
-      <ThemeProvider theme={theme}>
-        <SafeAreaProvider>
-          <LinearGradient
-            colors={[theme.colors.appBackground, theme.colors.appBackgroundAlt]}
-            style={styles.app}
-          >
-            <StatusBar style={theme.scheme === 'dark' ? 'light' : 'dark'} />
-            <View style={styles.orbLarge} />
-            <View style={styles.orbSmall} />
-            <SafeAreaView style={styles.safe} edges={['top']}>
-              <NavigationContainer theme={navTheme}>
-                <AppNavigator />
-              </NavigationContainer>
-            </SafeAreaView>
-          </LinearGradient>
-        </SafeAreaProvider>
-      </ThemeProvider>
+      <WebSocketProvider>
+        <ThemeProvider theme={theme}>
+          <SafeAreaProvider>
+            <LinearGradient
+              colors={[theme.colors.appBackground, theme.colors.appBackgroundAlt]}
+              style={styles.app}
+            >
+              <StatusBar style={theme.scheme === 'dark' ? 'light' : 'dark'} />
+              <View style={styles.orbLarge} />
+              <View style={styles.orbSmall} />
+              <SafeAreaView style={styles.safe} edges={['top']}>
+                <NavigationContainer theme={navTheme}>
+                  <AppNavigator />
+                </NavigationContainer>
+              </SafeAreaView>
+            </LinearGradient>
+          </SafeAreaProvider>
+        </ThemeProvider>
+      </WebSocketProvider>
     </AuthProvider>
   );
 }
