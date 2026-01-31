@@ -17,3 +17,9 @@ export const loginSchema = z.object({
 
 export type RegisterInput = z.infer<typeof registerSchema>;
 export type LoginInput = z.infer<typeof loginSchema>;
+
+export const totpVerifySchema = z.object({
+  code: z.string().length(6, 'Code must be 6 digits').regex(/^\d+$/, 'Code must be numeric'),
+});
+
+export type TotpVerifyInput = z.infer<typeof totpVerifySchema>;

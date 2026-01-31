@@ -1,7 +1,14 @@
-import { query, queryOne } from '../../db/queries/index.js';
+import { query, queryOne, execute } from '../../db/queries/index.js';
 import { hashPassword, verifyPassword } from '../../utils/crypto.js';
-import { ConflictError, AuthError } from '../../utils/errors.js';
+import { ConflictError, AuthError, NotFoundError, ValidationError } from '../../utils/errors.js';
 import { RegisterInput, LoginInput } from './auth.schema.js';
+import {
+  generateTotpSecret,
+  generateTotpUri,
+  encryptSecret,
+  decryptSecret,
+  verifyTotpCode,
+} from './strategies/totp.strategy.js';
 
 export interface User {
   id: string;
@@ -85,4 +92,77 @@ export async function getUserByEmail(email: string): Promise<User | null> {
 function toSafeUser(user: User): SafeUser {
   const { password_hash, totp_secret, ...safe } = user;
   return safe;
+}
+
+export async function setup2FA(userId: string): Promise<{ secret: string; uri: string }> {
+  const user = await queryOne<User>('SELECT email, totp_enabled FROM users WHERE id = $1', [userId]);
+
+  if (!user) {
+    throw new NotFoundError('User not found');
+  }
+
+  if (user.totp_enabled) {
+    throw new ConflictError('2FA is already enabled');
+  }
+
+  const secret = generateTotpSecret();
+  const uri = generateTotpUri(user.email, secret);
+  const encryptedSecret = encryptSecret(secret);
+
+  // Store encrypted secret (not enabled yet until verified)
+  await execute(
+    'UPDATE users SET totp_secret = $1 WHERE id = $2',
+    [encryptedSecret, userId]
+  );
+
+  return { secret, uri };
+}
+
+export async function verify2FASetup(userId: string, code: string): Promise<void> {
+  const user = await queryOne<User>('SELECT totp_secret, totp_enabled FROM users WHERE id = $1', [userId]);
+
+  if (!user || !user.totp_secret) {
+    throw new ValidationError('2FA setup not initiated');
+  }
+
+  if (user.totp_enabled) {
+    throw new ConflictError('2FA is already enabled');
+  }
+
+  const secret = decryptSecret(user.totp_secret);
+  const isValid = verifyTotpCode(secret, code);
+
+  if (!isValid) {
+    throw new ValidationError('Invalid verification code');
+  }
+
+  await execute('UPDATE users SET totp_enabled = true WHERE id = $1', [userId]);
+}
+
+export async function verify2FALogin(userId: string, code: string): Promise<boolean> {
+  const user = await queryOne<User>('SELECT totp_secret, totp_enabled FROM users WHERE id = $1', [userId]);
+
+  if (!user || !user.totp_enabled || !user.totp_secret) {
+    return false;
+  }
+
+  const secret = decryptSecret(user.totp_secret);
+  return verifyTotpCode(secret, code);
+}
+
+export async function disable2FA(userId: string, code: string): Promise<void> {
+  const user = await queryOne<User>('SELECT totp_secret, totp_enabled FROM users WHERE id = $1', [userId]);
+
+  if (!user || !user.totp_enabled || !user.totp_secret) {
+    throw new ValidationError('2FA is not enabled');
+  }
+
+  const secret = decryptSecret(user.totp_secret);
+  const isValid = verifyTotpCode(secret, code);
+
+  if (!isValid) {
+    throw new ValidationError('Invalid verification code');
+  }
+
+  await execute('UPDATE users SET totp_enabled = false, totp_secret = NULL WHERE id = $1', [userId]);
 }

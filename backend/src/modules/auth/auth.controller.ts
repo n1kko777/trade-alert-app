@@ -1,6 +1,6 @@
 import { FastifyInstance } from 'fastify';
 import { z } from 'zod';
-import { registerSchema, loginSchema, RegisterInput, LoginInput } from './auth.schema.js';
+import { registerSchema, loginSchema, totpVerifySchema, RegisterInput, LoginInput, TotpVerifyInput } from './auth.schema.js';
 import * as authService from './auth.service.js';
 import {
   generateAccessToken,
@@ -13,7 +13,7 @@ import {
   revokeSession,
 } from './strategies/jwt.strategy.js';
 import { authenticate } from '../../middleware/auth.middleware.js';
-import { AuthError, NotFoundError } from '../../utils/errors.js';
+import { AuthError, NotFoundError, ValidationError } from '../../utils/errors.js';
 
 const refreshSchema = z.object({
   refreshToken: z.string().min(1),
@@ -48,11 +48,19 @@ export async function authRoutes(fastify: FastifyInstance) {
       const { user, requires2FA } = await authService.login(input);
 
       if (requires2FA) {
-        return reply.send({
-          message: '2FA required',
-          requires2FA: true,
-          userId: user.id,
-        });
+        // If TOTP code is provided, verify it
+        if (input.totpCode) {
+          const isValid = await authService.verify2FALogin(user.id, input.totpCode);
+          if (!isValid) {
+            throw new ValidationError('Invalid 2FA code');
+          }
+        } else {
+          return reply.send({
+            message: '2FA required',
+            requires2FA: true,
+            userId: user.id,
+          });
+        }
       }
 
       // Generate tokens
@@ -204,6 +212,57 @@ export async function authRoutes(fastify: FastifyInstance) {
 
       return reply.send({
         message: 'Session revoked',
+      });
+    }
+  );
+
+  // Setup 2FA (protected)
+  fastify.post(
+    '/api/v1/auth/2fa/setup',
+    { preHandler: [authenticate] },
+    async (request, reply) => {
+      const { secret, uri } = await authService.setup2FA(request.user.userId);
+
+      request.log.info({ userId: request.user.userId }, '2FA setup initiated');
+
+      return reply.send({
+        message: '2FA setup initiated',
+        secret,
+        uri,
+      });
+    }
+  );
+
+  // Verify and enable 2FA (protected)
+  fastify.post<{ Body: TotpVerifyInput }>(
+    '/api/v1/auth/2fa/verify',
+    { preHandler: [authenticate] },
+    async (request, reply) => {
+      const { code } = totpVerifySchema.parse(request.body);
+
+      await authService.verify2FASetup(request.user.userId, code);
+
+      request.log.info({ userId: request.user.userId }, '2FA enabled');
+
+      return reply.send({
+        message: '2FA enabled successfully',
+      });
+    }
+  );
+
+  // Disable 2FA (protected)
+  fastify.post<{ Body: TotpVerifyInput }>(
+    '/api/v1/auth/2fa/disable',
+    { preHandler: [authenticate] },
+    async (request, reply) => {
+      const { code } = totpVerifySchema.parse(request.body);
+
+      await authService.disable2FA(request.user.userId, code);
+
+      request.log.info({ userId: request.user.userId }, '2FA disabled');
+
+      return reply.send({
+        message: '2FA disabled successfully',
       });
     }
   );
