@@ -8,6 +8,7 @@ import { getConfig } from './config/index.js';
 import { initLogger, getLogger } from './utils/logger.js';
 import errorHandlerPlugin from './plugins/errorHandler.js';
 import { healthRoutes } from './modules/health/health.controller.js';
+import authRoutes from './modules/auth/auth.routes.js';
 
 export async function buildApp(): Promise<FastifyInstance> {
   const config = getConfig();
@@ -86,6 +87,9 @@ export async function buildApp(): Promise<FastifyInstance> {
 
   // Health check routes
   await app.register(healthRoutes);
+
+  // Auth routes
+  await app.register(authRoutes);
 
   logger.info('Application built successfully');
 
