@@ -54,6 +54,17 @@ export interface PumpEvent {
   status: 'active' | 'cooling' | 'ended';
 }
 
+export interface Signal {
+  id: string;
+  symbol: string;
+  direction: 'BUY' | 'SELL';
+  entryPrice: number;
+  takeProfit: number;
+  stopLoss: number;
+  profit?: number;
+  status: 'active' | 'pending' | 'closed';
+}
+
 export interface ExchangeService {
   id: ExchangeId;
   name: string;
