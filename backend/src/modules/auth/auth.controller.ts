@@ -13,6 +13,7 @@ import {
   revokeSession,
 } from './strategies/jwt.strategy.js';
 import { authenticate } from '../../middleware/auth.middleware.js';
+import { authRateLimitConfig } from '../../middleware/rateLimit.middleware.js';
 import { AuthError, NotFoundError, ValidationError } from '../../utils/errors.js';
 
 const refreshSchema = z.object({
@@ -24,9 +25,10 @@ const logoutSchema = z.object({
 });
 
 export async function authRoutes(fastify: FastifyInstance) {
-  // Register
+  // Register - stricter rate limit (10 requests/minute)
   fastify.post<{ Body: RegisterInput }>(
     '/api/v1/auth/register',
+    { config: authRateLimitConfig },
     async (request, reply) => {
       const input = registerSchema.parse(request.body);
       const user = await authService.register(input);
@@ -40,9 +42,10 @@ export async function authRoutes(fastify: FastifyInstance) {
     }
   );
 
-  // Login
+  // Login - stricter rate limit (10 requests/minute)
   fastify.post<{ Body: LoginInput }>(
     '/api/v1/auth/login',
+    { config: authRateLimitConfig },
     async (request, reply) => {
       const input = loginSchema.parse(request.body);
       const { user, requires2FA } = await authService.login(input);
@@ -92,9 +95,10 @@ export async function authRoutes(fastify: FastifyInstance) {
     }
   );
 
-  // Refresh token
+  // Refresh token - stricter rate limit (10 requests/minute)
   fastify.post<{ Body: { refreshToken: string } }>(
     '/api/v1/auth/refresh',
+    { config: authRateLimitConfig },
     async (request, reply) => {
       const { refreshToken } = refreshSchema.parse(request.body);
 

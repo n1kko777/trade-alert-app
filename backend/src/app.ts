@@ -1,12 +1,12 @@
 import Fastify, { FastifyInstance } from 'fastify';
 import fastifyHelmet from '@fastify/helmet';
 import fastifyCors from '@fastify/cors';
-import fastifyRateLimit from '@fastify/rate-limit';
 import fastifyCookie from '@fastify/cookie';
 import fastifyJwt from '@fastify/jwt';
 import { getConfig } from './config/index.js';
 import { initLogger, getLogger } from './utils/logger.js';
 import errorHandlerPlugin from './plugins/errorHandler.js';
+import { registerRateLimitPlugin } from './middleware/rateLimit.middleware.js';
 import { healthRoutes } from './modules/health/health.controller.js';
 import authRoutes from './modules/auth/auth.routes.js';
 
@@ -68,11 +68,8 @@ export async function buildApp(): Promise<FastifyInstance> {
     credentials: true,
   });
 
-  // Rate limiting
-  await app.register(fastifyRateLimit, {
-    max: config.RATE_LIMIT_MAX,
-    timeWindow: '1 minute',
-  });
+  // Rate limiting with Redis store and custom key generator
+  await registerRateLimitPlugin(app);
 
   // Cookies
   await app.register(fastifyCookie);
