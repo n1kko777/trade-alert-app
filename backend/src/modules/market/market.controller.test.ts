@@ -12,6 +12,7 @@ const mockGetTicker = vi.fn();
 const mockGetOrderBook = vi.fn();
 const mockGetCandles = vi.fn();
 const mockGetLiquidations = vi.fn();
+const mockGetLiquidationMap = vi.fn();
 
 vi.mock('./market.service.js', () => ({
   getTickers: (...args: unknown[]) => mockGetTickers(...args),
@@ -19,6 +20,7 @@ vi.mock('./market.service.js', () => ({
   getOrderBook: (...args: unknown[]) => mockGetOrderBook(...args),
   getCandles: (...args: unknown[]) => mockGetCandles(...args),
   getLiquidations: (...args: unknown[]) => mockGetLiquidations(...args),
+  getLiquidationMap: (...args: unknown[]) => mockGetLiquidationMap(...args),
 }));
 
 // Sample test data
@@ -329,6 +331,21 @@ describe('Market Controller', () => {
   });
 
   describe('GET /api/v1/market/liquidations/:symbol', () => {
+    const mockLiquidationMap = {
+      symbol: 'BTCUSDT',
+      currentPrice: 50000,
+      levels: [
+        { leverage: 2, longPrice: 25000, shortPrice: 75000, estimatedVolume: 956458 },
+        { leverage: 3, longPrice: 33333.33, shortPrice: 66666.67, estimatedVolume: 928318 },
+        { leverage: 5, longPrice: 40000, shortPrice: 60000, estimatedVolume: 885870 },
+        { leverage: 10, longPrice: 45000, shortPrice: 55000, estimatedVolume: 800000 },
+        { leverage: 25, longPrice: 48000, shortPrice: 52000, estimatedVolume: 640000 },
+        { leverage: 50, longPrice: 49000, shortPrice: 51000, estimatedVolume: 512000 },
+        { leverage: 100, longPrice: 49500, shortPrice: 50500, estimatedVolume: 107374 },
+      ],
+      updatedAt: Date.now(),
+    };
+
     it('should return 401 without authentication', async () => {
       const response = await app.inject({
         method: 'GET',
@@ -338,8 +355,8 @@ describe('Market Controller', () => {
       expect(response.statusCode).toBe(401);
     });
 
-    it('should return placeholder response (not implemented)', async () => {
-      mockGetLiquidations.mockResolvedValue([]);
+    it('should return liquidation map when data is available', async () => {
+      mockGetLiquidationMap.mockResolvedValue(mockLiquidationMap);
 
       const response = await app.inject({
         method: 'GET',
@@ -349,8 +366,48 @@ describe('Market Controller', () => {
 
       expect(response.statusCode).toBe(200);
       const body = JSON.parse(response.body);
-      expect(body.liquidations).toEqual([]);
-      expect(body.message).toContain('placeholder');
+      expect(body.symbol).toBe('BTCUSDT');
+      expect(body.currentPrice).toBe(50000);
+      expect(body.levels).toHaveLength(7);
+      expect(body.levels[0].leverage).toBe(2);
+      expect(body.levels[0].longPrice).toBe(25000);
+      expect(body.levels[0].shortPrice).toBe(75000);
+      expect(body.updatedAt).toBeDefined();
+      expect(mockGetLiquidationMap).toHaveBeenCalledWith('BTCUSDT');
+    });
+
+    it('should return 404 when symbol ticker not found', async () => {
+      mockGetLiquidationMap.mockResolvedValue(null);
+
+      const response = await app.inject({
+        method: 'GET',
+        url: '/api/v1/market/liquidations/UNKNOWNUSDT',
+        headers: { authorization: `Bearer ${accessToken}` },
+      });
+
+      expect(response.statusCode).toBe(404);
+    });
+
+    it('should validate symbol format', async () => {
+      const response = await app.inject({
+        method: 'GET',
+        url: '/api/v1/market/liquidations/ab',
+        headers: { authorization: `Bearer ${accessToken}` },
+      });
+
+      expect(response.statusCode).toBe(400);
+    });
+
+    it('should normalize symbol to uppercase', async () => {
+      mockGetLiquidationMap.mockResolvedValue(mockLiquidationMap);
+
+      await app.inject({
+        method: 'GET',
+        url: '/api/v1/market/liquidations/btcusdt',
+        headers: { authorization: `Bearer ${accessToken}` },
+      });
+
+      expect(mockGetLiquidationMap).toHaveBeenCalledWith('BTCUSDT');
     });
   });
 

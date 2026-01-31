@@ -36,7 +36,24 @@ import {
   setCachedOrderBook,
   getCachedCandles,
   setCachedCandles,
+  getCachedLiquidations,
+  setCachedLiquidations,
 } from './cache.service.js';
+
+// Type for liquidation data
+interface LiquidationLevel {
+  leverage: number;
+  longPrice: number;
+  shortPrice: number;
+  estimatedVolume: number;
+}
+
+interface LiquidationMap {
+  symbol: string;
+  currentPrice: number;
+  levels: LiquidationLevel[];
+  updatedAt: number;
+}
 
 describe('Cache Service', () => {
   beforeEach(() => {
@@ -53,6 +70,7 @@ describe('Cache Service', () => {
       expect(CACHE_KEYS.TICKER).toBe('market:ticker:');
       expect(CACHE_KEYS.ORDERBOOK).toBe('market:orderbook:');
       expect(CACHE_KEYS.CANDLES).toBe('market:candles:');
+      expect(CACHE_KEYS.LIQUIDATIONS).toBe('market:liquidations:');
     });
   });
 
@@ -61,6 +79,7 @@ describe('Cache Service', () => {
       expect(CACHE_TTL.TICKERS).toBe(10);
       expect(CACHE_TTL.ORDERBOOK).toBe(5);
       expect(CACHE_TTL.CANDLES).toBe(60);
+      expect(CACHE_TTL.LIQUIDATIONS).toBe(60);
     });
   });
 
@@ -319,6 +338,56 @@ describe('Cache Service', () => {
       expect(mockRedisSet).toHaveBeenCalledWith(
         'market:candles:binance:BTCUSDT:1m',
         JSON.stringify(candles),
+        { EX: 60 }
+      );
+    });
+  });
+
+  describe('getCachedLiquidations', () => {
+    it('should return parsed liquidation map for symbol', async () => {
+      const liquidationMap: LiquidationMap = {
+        symbol: 'BTCUSDT',
+        currentPrice: 50000,
+        levels: [
+          { leverage: 2, longPrice: 25000, shortPrice: 75000, estimatedVolume: 956458 },
+          { leverage: 10, longPrice: 45000, shortPrice: 55000, estimatedVolume: 800000 },
+        ],
+        updatedAt: Date.now(),
+      };
+      mockRedisGet.mockResolvedValue(JSON.stringify(liquidationMap));
+
+      const result = await getCachedLiquidations('BTCUSDT');
+
+      expect(mockRedisGet).toHaveBeenCalledWith('market:liquidations:BTCUSDT');
+      expect(result).toEqual(liquidationMap);
+    });
+
+    it('should return null when liquidation map is not cached', async () => {
+      mockRedisGet.mockResolvedValue(null);
+
+      const result = await getCachedLiquidations('UNKNOWN');
+
+      expect(result).toBeNull();
+    });
+  });
+
+  describe('setCachedLiquidations', () => {
+    it('should store liquidation map with correct TTL (60s)', async () => {
+      const liquidationMap: LiquidationMap = {
+        symbol: 'BTCUSDT',
+        currentPrice: 50000,
+        levels: [
+          { leverage: 2, longPrice: 25000, shortPrice: 75000, estimatedVolume: 956458 },
+        ],
+        updatedAt: Date.now(),
+      };
+      mockRedisSet.mockResolvedValue('OK');
+
+      await setCachedLiquidations('BTCUSDT', liquidationMap);
+
+      expect(mockRedisSet).toHaveBeenCalledWith(
+        'market:liquidations:BTCUSDT',
+        JSON.stringify(liquidationMap),
         { EX: 60 }
       );
     });

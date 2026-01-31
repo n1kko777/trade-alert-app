@@ -10,6 +10,7 @@ export const CACHE_KEYS = {
   TICKER: 'market:ticker:',
   ORDERBOOK: 'market:orderbook:',
   CANDLES: 'market:candles:',
+  LIQUIDATIONS: 'market:liquidations:',
 } as const;
 
 /**
@@ -19,6 +20,7 @@ export const CACHE_TTL = {
   TICKERS: 10,
   ORDERBOOK: 5,
   CANDLES: 60,
+  LIQUIDATIONS: 60,
 } as const;
 
 /**
@@ -169,4 +171,48 @@ export async function getCachedCandles(exchange: string, symbol: string, interva
 export async function setCachedCandles(exchange: string, symbol: string, interval: string, data: Candle[]): Promise<void> {
   const key = `${CACHE_KEYS.CANDLES}${exchange}:${symbol}:${interval}`;
   await setCache(key, data, CACHE_TTL.CANDLES);
+}
+
+// ============================================================================
+// Liquidation Cache Functions
+// ============================================================================
+
+/**
+ * Liquidation level data for a specific leverage
+ */
+export interface LiquidationLevel {
+  leverage: number;
+  longPrice: number;
+  shortPrice: number;
+  estimatedVolume: number;
+}
+
+/**
+ * Full liquidation map for a symbol
+ */
+export interface LiquidationMap {
+  symbol: string;
+  currentPrice: number;
+  levels: LiquidationLevel[];
+  updatedAt: number;
+}
+
+/**
+ * Get cached liquidation map for a symbol
+ * @param symbol Trading pair symbol (e.g., "BTCUSDT")
+ * @returns Liquidation map or null if not cached
+ */
+export async function getCachedLiquidations(symbol: string): Promise<LiquidationMap | null> {
+  const key = `${CACHE_KEYS.LIQUIDATIONS}${symbol}`;
+  return getCache<LiquidationMap>(key);
+}
+
+/**
+ * Cache a liquidation map for a symbol
+ * @param symbol Trading pair symbol
+ * @param data Liquidation map to cache
+ */
+export async function setCachedLiquidations(symbol: string, data: LiquidationMap): Promise<void> {
+  const key = `${CACHE_KEYS.LIQUIDATIONS}${symbol}`;
+  await setCache(key, data, CACHE_TTL.LIQUIDATIONS);
 }

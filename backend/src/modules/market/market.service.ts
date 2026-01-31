@@ -5,7 +5,14 @@ import {
   getCachedCandles,
   setCachedOrderBook,
   setCachedCandles,
+  getCachedLiquidations,
+  setCachedLiquidations,
+  type LiquidationLevel,
+  type LiquidationMap,
 } from '../../services/cache.service.js';
+
+// Re-export types for external use
+export type { LiquidationLevel, LiquidationMap };
 import {
   BinanceExchange,
   BybitExchange,
@@ -29,6 +36,26 @@ export interface Liquidation {
   quantity: number;
   timestamp: number;
 }
+
+// ============================================================================
+// Liquidation Calculator Constants
+// ============================================================================
+
+/**
+ * Standard leverage levels for liquidation calculations
+ */
+export const LEVERAGE_LEVELS = [2, 3, 5, 10, 25, 50, 100] as const;
+
+/**
+ * Volume decay factor for realistic volume estimation at higher leverage
+ * 0.8 means volume decreases by 20% for each 10x increase in leverage
+ */
+export const VOLUME_DECAY_FACTOR = 0.8;
+
+/**
+ * Base volume for liquidation estimation (in USD)
+ */
+export const BASE_VOLUME = 1_000_000;
 
 // Exchange instances cache
 let exchangeInstances: Map<ExchangeId, BaseExchange> | null = null;
@@ -171,6 +198,82 @@ export async function getLiquidations(_symbol: string): Promise<Liquidation[]> {
   // Placeholder implementation
   // Will be implemented in Phase 4.3: Liquidation calculator
   return [];
+}
+
+// ============================================================================
+// Liquidation Calculator Functions
+// ============================================================================
+
+/**
+ * Calculate liquidation levels for a given symbol and price
+ *
+ * Formulas:
+ * - Long liquidation price = price * (1 - 1/leverage)
+ * - Short liquidation price = price * (1 + 1/leverage)
+ * - Estimated volume = baseVolume * decayFactor^(leverage/10)
+ *
+ * @param _symbol Trading pair symbol (used for context/logging)
+ * @param currentPrice Current price of the asset
+ * @returns Array of liquidation levels for each standard leverage level
+ */
+export function calculateLiquidationLevels(_symbol: string, currentPrice: number): LiquidationLevel[] {
+  return LEVERAGE_LEVELS.map((leverage) => {
+    // Long liquidation: position gets liquidated when price drops
+    // Formula: price * (1 - 1/leverage)
+    const longPrice = currentPrice * (1 - 1 / leverage);
+
+    // Short liquidation: position gets liquidated when price rises
+    // Formula: price * (1 + 1/leverage)
+    const shortPrice = currentPrice * (1 + 1 / leverage);
+
+    // Estimated volume with decay: higher leverage = less volume (more risk averse)
+    // Formula: baseVolume * decayFactor^(leverage/10)
+    const estimatedVolume = BASE_VOLUME * Math.pow(VOLUME_DECAY_FACTOR, leverage / 10);
+
+    return {
+      leverage,
+      longPrice,
+      shortPrice,
+      estimatedVolume,
+    };
+  });
+}
+
+/**
+ * Get the full liquidation map for a symbol
+ * First checks cache, then calculates if not cached
+ *
+ * @param symbol Trading pair symbol
+ * @returns Liquidation map or null if ticker not found
+ */
+export async function getLiquidationMap(symbol: string): Promise<LiquidationMap | null> {
+  // Try to get from cache first
+  const cached = await getCachedLiquidations(symbol);
+  if (cached) {
+    return cached;
+  }
+
+  // Get current price from ticker
+  const ticker = await getCachedTicker(symbol);
+  if (!ticker) {
+    return null;
+  }
+
+  // Calculate liquidation levels
+  const levels = calculateLiquidationLevels(symbol, ticker.price);
+
+  // Build the liquidation map
+  const liquidationMap: LiquidationMap = {
+    symbol,
+    currentPrice: ticker.price,
+    levels,
+    updatedAt: Date.now(),
+  };
+
+  // Cache the result
+  await setCachedLiquidations(symbol, liquidationMap);
+
+  return liquidationMap;
 }
 
 /**

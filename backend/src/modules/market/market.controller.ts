@@ -164,7 +164,8 @@ export async function getCandlesHandler(
 
 /**
  * GET /api/v1/market/liquidations/:symbol
- * Get liquidations for a symbol (placeholder)
+ * Get liquidation levels for a symbol
+ * Returns calculated liquidation prices for various leverage levels (2x, 3x, 5x, 10x, 25x, 50x, 100x)
  */
 export async function getLiquidationsHandler(
   request: FastifyRequest<{ Params: SymbolParams }>,
@@ -179,12 +180,13 @@ export async function getLiquidationsHandler(
   const { symbol } = parseResult.data;
   const normalizedSymbol = symbol.toUpperCase();
 
-  const liquidations = await marketService.getLiquidations(normalizedSymbol);
+  const liquidationMap = await marketService.getLiquidationMap(normalizedSymbol);
 
-  return reply.send({
-    liquidations,
-    message: 'Liquidations endpoint is a placeholder - will be implemented in Phase 4.3',
-  });
+  if (!liquidationMap) {
+    throw new NotFoundError(`Liquidation data not found for symbol: ${normalizedSymbol}`);
+  }
+
+  return reply.send(liquidationMap);
 }
 
 // =============================================================================
