@@ -1,0 +1,37 @@
+version: '3.8'
+
+services:
+  api:
+    build:
+      context: .
+      target: builder
+    command: npm run dev
+    volumes:
+      - ./src:/app/src:ro
+      - ./package.json:/app/package.json:ro
+      - ./tsconfig.json:/app/tsconfig.json:ro
+    environment:
+      - NODE_ENV=development
+      - DATABASE_URL=postgresql://${DB_USER}:${DB_PASSWORD}@postgres:5432/${DB_NAME}
+      - REDIS_URL=redis://:${REDIS_PASSWORD}@redis:6379
+      - JWT_SECRET=${JWT_SECRET}
+      - JWT_REFRESH_SECRET=${JWT_REFRESH_SECRET}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - PORT=3000
+      - LOG_LEVEL=${LOG_LEVEL:-debug}
+      - CORS_ORIGIN=${CORS_ORIGIN:-http://localhost:5173}
+      - RATE_LIMIT_MAX=${RATE_LIMIT_MAX:-1000}
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:3000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+
+  postgres:
+    ports:
+      - "5432:5432"
+
+  redis:
+    ports:
+      - "6379:6379"
