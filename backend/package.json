@@ -1,0 +1,43 @@
+{
+  "name": "tradepulse-backend",
+  "version": "1.0.0",
+  "description": "TradePulse backend API",
+  "type": "module",
+  "main": "dist/index.js",
+  "scripts": {
+    "dev": "nodemon --watch src --ext ts --exec tsx src/index.ts",
+    "build": "tsc",
+    "start": "node dist/index.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "fastify": "^4.28.1",
+    "@fastify/jwt": "^8.0.1",
+    "@fastify/websocket": "^10.0.1",
+    "@fastify/cors": "^9.0.1",
+    "@fastify/helmet": "^11.1.1",
+    "@fastify/rate-limit": "^9.1.0",
+    "@fastify/cookie": "^9.4.0",
+    "pg": "^8.12.0",
+    "redis": "^4.7.0",
+    "zod": "^3.23.8",
+    "argon2": "^0.31.2",
+    "otplib": "^12.0.1",
+    "pino": "^8.21.0",
+    "pino-pretty": "^10.3.1",
+    "node-cron": "^3.0.3",
+    "dotenv": "^16.4.5"
+  },
+  "devDependencies": {
+    "typescript": "^5.5.4",
+    "@types/node": "^20.14.14",
+    "@types/pg": "^8.11.6",
+    "tsx": "^4.17.0",
+    "nodemon": "^3.1.4"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
