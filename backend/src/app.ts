@@ -3,6 +3,7 @@ import fastifyHelmet from '@fastify/helmet';
 import fastifyCors from '@fastify/cors';
 import fastifyCookie from '@fastify/cookie';
 import fastifyJwt from '@fastify/jwt';
+import fastifyWebsocket from '@fastify/websocket';
 import { getConfig } from './config/index.js';
 import { initLogger, getLogger } from './utils/logger.js';
 import errorHandlerPlugin from './plugins/errorHandler.js';
@@ -11,6 +12,7 @@ import { registerHoneypotRoutes, createBlockedIpCheck } from './middleware/secur
 import { healthRoutes } from './modules/health/health.controller.js';
 import authRoutes from './modules/auth/auth.routes.js';
 import marketRoutes from './modules/market/market.routes.js';
+import { registerWebSocketServer } from './websocket/index.js';
 
 export async function buildApp(): Promise<FastifyInstance> {
   const config = getConfig();
@@ -99,6 +101,10 @@ export async function buildApp(): Promise<FastifyInstance> {
 
   // Market data routes
   await app.register(marketRoutes);
+
+  // WebSocket server
+  await app.register(fastifyWebsocket);
+  await registerWebSocketServer(app);
 
   logger.info('Application built successfully');
 

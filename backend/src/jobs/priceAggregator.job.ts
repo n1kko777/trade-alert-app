@@ -9,6 +9,7 @@ import {
   type Ticker,
   type BaseExchange,
 } from '../modules/market/exchanges/index.js';
+import { broadcastTickers } from '../websocket/index.js';
 
 /**
  * Redis key constants for market data storage
@@ -180,7 +181,7 @@ export async function storeTickers(
 
 /**
  * Main job execution function
- * Fetches, aggregates, and stores tickers
+ * Fetches, aggregates, stores tickers and broadcasts via WebSocket
  */
 async function runPriceAggregator(): Promise<void> {
   const logger = getLogger();
@@ -195,6 +196,10 @@ async function runPriceAggregator(): Promise<void> {
 
     // Store in Redis
     await storeTickers(aggregatedTickers);
+
+    // Broadcast to WebSocket subscribers
+    const tickersArray = Array.from(aggregatedTickers.values());
+    broadcastTickers(tickersArray);
 
     const duration = Date.now() - startTime;
     logger.info(
