@@ -40,7 +40,7 @@ describe('Portfolio Service', () => {
     id: 'asset-id-1',
     user_id: userId,
     symbol: 'BTCUSDT',
-    amount: '1.5',
+    quantity: '1.5',
     avg_buy_price: '50000.00',
     created_at: new Date('2024-01-01'),
     updated_at: new Date('2024-01-01'),
@@ -74,8 +74,8 @@ describe('Portfolio Service', () => {
 
     it('should return portfolio with calculated values', async () => {
       const mockRows = [
-        createMockDbRow({ symbol: 'BTCUSDT', amount: '1', avg_buy_price: '50000.00' }),
-        createMockDbRow({ id: 'asset-id-2', symbol: 'ETHUSDT', amount: '10', avg_buy_price: '3000.00' }),
+        createMockDbRow({ symbol: 'BTCUSDT', quantity: '1', avg_buy_price: '50000.00' }),
+        createMockDbRow({ id: 'asset-id-2', symbol: 'ETHUSDT', quantity: '10', avg_buy_price: '3000.00' }),
       ];
       const mockTickers = [
         createMockTicker('BTCUSDT', 55000),  // BTC up 10%
@@ -115,8 +115,8 @@ describe('Portfolio Service', () => {
 
     it('should handle assets without price data', async () => {
       const mockRows = [
-        createMockDbRow({ symbol: 'BTCUSDT', amount: '1', avg_buy_price: '50000.00' }),
-        createMockDbRow({ id: 'asset-id-2', symbol: 'UNKNOWNUSDT', amount: '100', avg_buy_price: '10.00' }),
+        createMockDbRow({ symbol: 'BTCUSDT', quantity: '1', avg_buy_price: '50000.00' }),
+        createMockDbRow({ id: 'asset-id-2', symbol: 'UNKNOWNUSDT', quantity: '100', avg_buy_price: '10.00' }),
       ];
       const mockTickers = [
         createMockTicker('BTCUSDT', 55000),
@@ -146,7 +146,7 @@ describe('Portfolio Service', () => {
 
     it('should handle no cached tickers', async () => {
       const mockRows = [
-        createMockDbRow({ symbol: 'BTCUSDT', amount: '1', avg_buy_price: '50000.00' }),
+        createMockDbRow({ symbol: 'BTCUSDT', quantity: '1', avg_buy_price: '50000.00' }),
       ];
 
       mockQuery.mockResolvedValue(mockRows);
@@ -213,7 +213,7 @@ describe('Portfolio Service', () => {
 
   describe('updateAsset', () => {
     it('should update asset amount', async () => {
-      const mockRow = createMockDbRow({ amount: '2.0' });
+      const mockRow = createMockDbRow({ quantity: '2.0' });
       mockQueryOne
         .mockResolvedValueOnce(createMockDbRow()) // Initial check
         .mockResolvedValueOnce(mockRow); // Updated result
@@ -235,7 +235,7 @@ describe('Portfolio Service', () => {
     });
 
     it('should update both amount and avgBuyPrice', async () => {
-      const mockRow = createMockDbRow({ amount: '3.0', avg_buy_price: '60000.00' });
+      const mockRow = createMockDbRow({ quantity: '3.0', avg_buy_price: '60000.00' });
       mockQueryOne
         .mockResolvedValueOnce(createMockDbRow()) // Initial check
         .mockResolvedValueOnce(mockRow); // Updated result
@@ -318,7 +318,7 @@ describe('Portfolio Service', () => {
 
     it('should convert DB row to PortfolioAsset type', async () => {
       const mockRow = createMockDbRow({
-        amount: '2.5',
+        quantity: '2.5',
         avg_buy_price: '45000.12345678',
       });
       mockQueryOne.mockResolvedValue(mockRow);

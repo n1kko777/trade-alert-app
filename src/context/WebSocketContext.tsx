@@ -206,6 +206,11 @@ export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({
     };
 
     const handleError = (message: WebSocketMessage) => {
+      // Ignore non-critical "already subscribed" errors
+      if (message.message?.includes('Already subscribed')) {
+        console.log('[WS Context] Already subscribed, ignoring:', message.message);
+        return;
+      }
       console.error('[WS Context] Server error:', message.message);
     };
 

@@ -18,21 +18,21 @@ import {
 export async function getTickers(
   params?: Pick<MarketQueryParams, 'exchange'>
 ): Promise<ApiTicker[]> {
-  const response = await apiClient.get<ApiTicker[]>(
+  const response = await apiClient.get<{ tickers: ApiTicker[] }>(
     ENDPOINTS.market.tickers,
     { params }
   );
-  return response.data;
+  return response.data.tickers;
 }
 
 /**
  * Get ticker for a specific symbol
  */
 export async function getTicker(symbol: string): Promise<ApiTicker> {
-  const response = await apiClient.get<ApiTicker>(
+  const response = await apiClient.get<{ ticker: ApiTicker }>(
     ENDPOINTS.market.ticker(symbol)
   );
-  return response.data;
+  return response.data.ticker;
 }
 
 /**
@@ -42,11 +42,11 @@ export async function getOrderBook(
   symbol: string,
   params?: Pick<MarketQueryParams, 'exchange' | 'depth'>
 ): Promise<ApiOrderBook> {
-  const response = await apiClient.get<ApiOrderBook>(
+  const response = await apiClient.get<{ orderbook: ApiOrderBook }>(
     ENDPOINTS.market.orderbook(symbol),
     { params }
   );
-  return response.data;
+  return response.data.orderbook;
 }
 
 /**
@@ -56,11 +56,11 @@ export async function getCandles(
   symbol: string,
   params?: Pick<MarketQueryParams, 'exchange' | 'interval' | 'limit'>
 ): Promise<ApiCandle[]> {
-  const response = await apiClient.get<ApiCandle[]>(
+  const response = await apiClient.get<{ candles: ApiCandle[] }>(
     ENDPOINTS.market.candles(symbol),
     { params }
   );
-  return response.data;
+  return response.data.candles;
 }
 
 /**

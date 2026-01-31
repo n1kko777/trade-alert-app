@@ -95,8 +95,8 @@ export async function disable2FA(totpCode: string): Promise<{ message: string }>
  * Get current user profile
  */
 export async function getCurrentUser(): Promise<ApiUser> {
-  const response = await apiClient.get<ApiUser>(ENDPOINTS.user.me);
-  return response.data;
+  const response = await apiClient.get<{ user: ApiUser }>(ENDPOINTS.user.me);
+  return response.data.user;
 }
 
 // Export all functions as named exports

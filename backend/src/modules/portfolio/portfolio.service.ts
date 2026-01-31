@@ -18,7 +18,7 @@ function dbRowToAsset(row: PortfolioDbRow): Omit<PortfolioAsset, 'currentPrice' 
     id: row.id,
     userId: row.user_id,
     symbol: row.symbol,
-    amount: parseFloat(row.amount),
+    amount: parseFloat(row.quantity),
     avgBuyPrice: parseFloat(row.avg_buy_price),
     createdAt: row.created_at,
     updatedAt: row.updated_at,
@@ -63,7 +63,7 @@ function calculateAssetValues(
 export async function getPortfolio(userId: string): Promise<Portfolio> {
   // Fetch user's assets from database
   const rows = await query<PortfolioDbRow>(
-    `SELECT id, user_id, symbol, amount, avg_buy_price, created_at, updated_at
+    `SELECT id, user_id, symbol, quantity, avg_buy_price, created_at, updated_at
      FROM portfolios
      WHERE user_id = $1
      ORDER BY created_at DESC`,
@@ -107,7 +107,7 @@ export async function getPortfolio(userId: string): Promise<Portfolio> {
   // Calculate total P&L (only using assets with prices)
   const costOfPricedAssets = rows
     .filter((row) => tickerMap.has(row.symbol))
-    .reduce((sum, row) => sum + parseFloat(row.amount) * parseFloat(row.avg_buy_price), 0);
+    .reduce((sum, row) => sum + parseFloat(row.quantity) * parseFloat(row.avg_buy_price), 0);
 
   const totalPnlAbsolute = totalValue - costOfPricedAssets;
   const totalPnl = totalCost > 0 ? (totalPnlAbsolute / totalCost) * 100 : 0;
@@ -130,9 +130,9 @@ export async function addAsset(userId: string, input: AddAssetInput): Promise<Po
   const symbol = input.symbol.toUpperCase();
 
   const row = await queryOne<PortfolioDbRow>(
-    `INSERT INTO portfolios (user_id, symbol, amount, avg_buy_price)
+    `INSERT INTO portfolios (user_id, symbol, quantity, avg_buy_price)
      VALUES ($1, $2, $3, $4)
-     RETURNING id, user_id, symbol, amount, avg_buy_price, created_at, updated_at`,
+     RETURNING id, user_id, symbol, quantity, avg_buy_price, created_at, updated_at`,
     [userId, symbol, input.amount, input.avgBuyPrice]
   );
 
@@ -173,7 +173,7 @@ export async function updateAsset(
   let paramIndex = 1;
 
   if (update.amount !== undefined) {
-    updates.push(`amount = $${paramIndex}`);
+    updates.push(`quantity = $${paramIndex}`);
     params.push(update.amount);
     paramIndex++;
   }
@@ -191,7 +191,7 @@ export async function updateAsset(
     `UPDATE portfolios
      SET ${updates.join(', ')}
      WHERE id = $${paramIndex}
-     RETURNING id, user_id, symbol, amount, avg_buy_price, created_at, updated_at`,
+     RETURNING id, user_id, symbol, quantity, avg_buy_price, created_at, updated_at`,
     params
   );
 

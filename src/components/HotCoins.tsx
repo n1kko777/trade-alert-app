@@ -51,9 +51,9 @@ function HotCoins({ coins, onCoinPress }: HotCoinsProps) {
 export default React.memo(HotCoins);
 
 const styles = StyleSheet.create({
-  container: { marginBottom: 16 },
-  title: { fontSize: 18, fontWeight: 'bold', marginBottom: 12, paddingHorizontal: 16 },
-  list: { paddingHorizontal: 12 },
+  container: { marginBottom: 16, marginHorizontal: -20 },
+  title: { fontSize: 18, fontWeight: 'bold', marginBottom: 12, paddingHorizontal: 20 },
+  list: { paddingHorizontal: 16 },
   coinCard: { padding: 12, borderRadius: 12, marginHorizontal: 4, minWidth: 100, alignItems: 'center' },
   symbol: { fontSize: 16, fontWeight: 'bold', marginBottom: 4 },
   price: { fontSize: 14, marginBottom: 2 },

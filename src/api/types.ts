@@ -64,7 +64,7 @@ export type SubscriptionTier = 'free' | 'pro' | 'premium' | 'vip';
 export interface ApiUser {
   id: string;
   email: string;
-  name: string;
+  name?: string;
   subscription: SubscriptionTier;
   createdAt: string;
   is2FAEnabled?: boolean;
@@ -167,7 +167,7 @@ export interface ApiTicker {
   high24h: number;
   low24h: number;
   exchanges: string[];
-  updatedAt: string;
+  timestamp: number;
 }
 
 /**
@@ -193,13 +193,12 @@ export interface ApiOrderBook {
  * Candle/Kline data
  */
 export interface ApiCandle {
-  openTime: number;
+  timestamp: number;
   open: number;
   high: number;
   low: number;
   close: number;
   volume: number;
-  closeTime: number;
 }
 
 /**
@@ -290,13 +289,14 @@ export interface ApiSignalStats {
  */
 export interface ApiPortfolioAsset {
   id: string;
+  userId: string;
   symbol: string;
   amount: number;
   avgBuyPrice: number;
-  currentPrice?: number;
-  pnl?: number;
-  pnlPercent?: number;
-  value?: number;
+  currentPrice: number | null;
+  currentValue: number | null;
+  pnl: number | null;
+  pnlAbsolute: number | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -307,8 +307,11 @@ export interface ApiPortfolioAsset {
 export interface ApiPortfolio {
   assets: ApiPortfolioAsset[];
   totalValue: number;
+  totalCost: number;
   totalPnl: number;
-  totalPnlPercent: number;
+  totalPnlAbsolute: number;
+  assetsWithPrice: number;
+  assetsWithoutPrice: number;
 }
 
 /**

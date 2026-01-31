@@ -16,19 +16,19 @@ import {
  * Get user's portfolio
  */
 export async function getPortfolio(): Promise<ApiPortfolio> {
-  const response = await apiClient.get<ApiPortfolio>(ENDPOINTS.portfolio.get);
-  return response.data;
+  const response = await apiClient.get<{ portfolio: ApiPortfolio }>(ENDPOINTS.portfolio.get);
+  return response.data.portfolio;
 }
 
 /**
  * Add a new asset to portfolio
  */
 export async function addAsset(asset: AddAssetRequest): Promise<ApiPortfolioAsset> {
-  const response = await apiClient.post<ApiPortfolioAsset>(
+  const response = await apiClient.post<{ asset: ApiPortfolioAsset; message: string }>(
     ENDPOINTS.portfolio.addAsset,
     asset
   );
-  return response.data;
+  return response.data.asset;
 }
 
 /**
@@ -38,11 +38,11 @@ export async function updateAsset(
   id: string,
   updates: UpdateAssetRequest
 ): Promise<ApiPortfolioAsset> {
-  const response = await apiClient.patch<ApiPortfolioAsset>(
+  const response = await apiClient.patch<{ asset: ApiPortfolioAsset; message: string }>(
     ENDPOINTS.portfolio.updateAsset(id),
     updates
   );
-  return response.data;
+  return response.data.asset;
 }
 
 /**

@@ -202,13 +202,13 @@ export default function MoreScreen() {
           ]}
         >
           <Text style={styles.avatarText}>
-            {user.name.charAt(0).toUpperCase()}
+            {(user.name || user.email).charAt(0).toUpperCase()}
           </Text>
         </View>
         <View style={styles.userInfo}>
           <View style={styles.nameRow}>
             <Text style={[styles.userName, { color: theme.colors.textPrimary }]}>
-              {user.name}
+              {user.name || user.email.split('@')[0]}
             </Text>
             {isPro() && (
               <View

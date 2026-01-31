@@ -87,7 +87,7 @@ function mapApiUserToUser(apiUser: ApiUser): User {
   return {
     id: apiUser.id,
     email: apiUser.email,
-    name: apiUser.name,
+    name: apiUser.name || apiUser.email.split('@')[0],
     subscriptionTier: apiUser.subscription as SubscriptionTier,
     createdAt: new Date(apiUser.createdAt),
     is2FAEnabled: apiUser.is2FAEnabled,

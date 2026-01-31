@@ -73,7 +73,7 @@ export interface PortfolioDbRow {
   id: string;
   user_id: string;
   symbol: string;
-  amount: string;  // NUMERIC comes as string from Postgres
+  quantity: string;  // NUMERIC comes as string from Postgres
   avg_buy_price: string;  // NUMERIC comes as string from Postgres
   created_at: Date;
   updated_at: Date;

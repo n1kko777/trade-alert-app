@@ -23,11 +23,15 @@ import type { TickerData, SignalData } from '../services/websocket';
 
 // Map WebSocket ticker to local Ticker format
 function mapTickerData(data: TickerData): Ticker {
+  // change24h from API is already a percentage, not absolute value
+  const changePercent = data.change24h;
+  const previousPrice = data.price / (1 + changePercent / 100);
+  const absoluteChange = data.price - previousPrice;
   return {
     symbol: data.symbol,
     price: data.price,
-    priceChange24h: data.change24h,
-    priceChangePct24h: (data.change24h / (data.price - data.change24h)) * 100,
+    priceChange24h: absoluteChange,
+    priceChangePct24h: changePercent,
     volume24h: data.volume24h,
     high24h: data.high24h,
     low24h: data.low24h,

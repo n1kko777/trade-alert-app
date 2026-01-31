@@ -39,7 +39,7 @@ function mapApiTicker(data: ApiTicker): Ticker {
 // Map API candle to local format
 function mapApiCandle(data: ApiCandle): Candle {
   return {
-    time: data.openTime,
+    time: data.timestamp,
     open: data.open,
     high: data.high,
     low: data.low,
@@ -72,17 +72,17 @@ export default function ChartScreen() {
 
       // Fetch candles and ticker from backend API in parallel
       const [candlesResponse, tickerResponse] = await Promise.all([
-        apiClient.get<ApiCandle[]>(
-          `${ENDPOINTS.market.candles}/${fullSymbol}`,
+        apiClient.get<{ candles: ApiCandle[] }>(
+          ENDPOINTS.market.candles(fullSymbol),
           { params: { interval: timeframe, limit: 200 } }
         ),
-        apiClient.get<ApiTicker>(
-          `${ENDPOINTS.market.ticker}/${fullSymbol}`
+        apiClient.get<{ ticker: ApiTicker }>(
+          ENDPOINTS.market.ticker(fullSymbol)
         ),
       ]);
 
-      setCandles(candlesResponse.data.map(mapApiCandle));
-      setTicker(mapApiTicker(tickerResponse.data));
+      setCandles(candlesResponse.data.candles.map(mapApiCandle));
+      setTicker(mapApiTicker(tickerResponse.data.ticker));
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load chart data');
       setCandles([]);

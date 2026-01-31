@@ -11,8 +11,8 @@ import { ApiPump } from './types';
  * Get list of active pumps
  */
 export async function getActivePumps(): Promise<ApiPump[]> {
-  const response = await apiClient.get<ApiPump[]>(ENDPOINTS.pumps.list);
-  return response.data;
+  const response = await apiClient.get<{ pumps: ApiPump[]; count: number }>(ENDPOINTS.pumps.list);
+  return response.data.pumps;
 }
 
 /**

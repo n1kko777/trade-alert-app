@@ -38,14 +38,21 @@ const LoginScreen: React.FC = () => {
   const [password, setPassword] = useState('');
 
   const handleLogin = async () => {
+    console.log('handleLogin called, email:', email, 'password:', password ? '***' : 'empty');
     if (!email.trim() || !password.trim()) {
+      console.log('Validation failed - empty fields');
       Alert.alert('Ошибка', 'Введите email и пароль');
       return;
     }
+    console.log('Attempting login...');
 
     try {
       await login({ email: email.trim(), password });
+      // Login successful - close the modal
+      console.log('Login successful, closing modal');
+      navigation.goBack();
     } catch (error) {
+      console.log('Login error:', error);
       Alert.alert(
         'Ошибка входа',
         error instanceof Error ? error.message : 'Не удалось войти'

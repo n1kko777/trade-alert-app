@@ -12,16 +12,33 @@ import {
 } from './types';
 
 /**
+ * Response structure from signals endpoint
+ */
+interface SignalsResponse {
+  signals: ApiSignal[];
+  count: number;
+  limit: number;
+  offset: number;
+  tierLimit: string;
+}
+
+/**
  * Get list of signals with optional filters
  */
 export async function getSignals(
   params?: SignalsQueryParams
 ): Promise<PaginatedResponse<ApiSignal>> {
-  const response = await apiClient.get<PaginatedResponse<ApiSignal>>(
+  const response = await apiClient.get<SignalsResponse>(
     ENDPOINTS.signals.list,
     { params }
   );
-  return response.data;
+  // Transform to PaginatedResponse format
+  return {
+    data: response.data.signals,
+    count: response.data.count,
+    limit: response.data.limit,
+    offset: response.data.offset,
+  };
 }
 
 /**

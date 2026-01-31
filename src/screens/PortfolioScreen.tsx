@@ -11,10 +11,10 @@ import type { ApiPortfolio, ApiPortfolioAsset, ApiError } from '../api/types';
 
 // Map API portfolio asset to Position format
 function mapAssetToPosition(asset: ApiPortfolioAsset): Position {
-  const value = asset.value ?? asset.amount * (asset.currentPrice ?? asset.avgBuyPrice);
+  const value = asset.currentValue ?? asset.amount * (asset.currentPrice ?? asset.avgBuyPrice);
   const costBasis = asset.amount * asset.avgBuyPrice;
-  const profitLoss = asset.pnl ?? (value - costBasis);
-  const profitLossPercent = asset.pnlPercent ?? (costBasis > 0 ? (profitLoss / costBasis) * 100 : 0);
+  const profitLoss = asset.pnlAbsolute ?? (value - costBasis);
+  const profitLossPercent = asset.pnl ?? (costBasis > 0 ? (profitLoss / costBasis) * 100 : 0);
 
   return {
     id: asset.id,
@@ -116,8 +116,8 @@ export default function PortfolioScreen() {
   }, [portfolio]);
 
   const totalValue = portfolio?.totalValue ?? 0;
-  const totalPnL = portfolio?.totalPnl ?? 0;
-  const totalPnLPercent = portfolio?.totalPnlPercent ?? 0;
+  const totalPnL = portfolio?.totalPnlAbsolute ?? 0;
+  const totalPnLPercent = portfolio?.totalPnl ?? 0;
 
   const pnlHistory = useMemo(() => generatePnLHistory(totalValue), [totalValue]);
 
