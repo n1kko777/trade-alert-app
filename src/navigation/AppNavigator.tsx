@@ -1,5 +1,7 @@
 import React from 'react';
+import { TouchableOpacity, Text } from 'react-native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { useNavigation } from '@react-navigation/native';
 import { useTheme } from '../theme-context';
 import type { RootStackParamList } from './types';
 
@@ -24,6 +26,24 @@ import RegisterScreen from '../screens/auth/RegisterScreen';
 import SubscriptionScreen from '../screens/auth/SubscriptionScreen';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
+
+function CloseButton() {
+  const navigation = useNavigation();
+  const { theme } = useTheme();
+  return (
+    <TouchableOpacity
+      onPress={() => navigation.goBack()}
+      style={{
+        width: 32,
+        height: 32,
+        alignItems: 'center',
+        justifyContent: 'center',
+      }}
+    >
+      <Text style={{ fontSize: 18, color: theme.colors.textSecondary, lineHeight: 20 }}>✕</Text>
+    </TouchableOpacity>
+  );
+}
 
 export default function AppNavigator() {
   const { theme } = useTheme();
@@ -178,6 +198,7 @@ export default function AppNavigator() {
           headerTintColor: theme.colors.textPrimary,
           headerShadowVisible: false,
           presentation: 'modal',
+          headerRight: () => <CloseButton />,
         }}
       />
       <Stack.Screen
@@ -190,6 +211,7 @@ export default function AppNavigator() {
           headerTintColor: theme.colors.textPrimary,
           headerShadowVisible: false,
           presentation: 'modal',
+          headerRight: () => <CloseButton />,
         }}
       />
       <Stack.Screen
@@ -202,6 +224,7 @@ export default function AppNavigator() {
           headerTintColor: theme.colors.textPrimary,
           headerShadowVisible: false,
           presentation: 'modal',
+          headerRight: () => <CloseButton />,
         }}
       />
     </Stack.Navigator>
