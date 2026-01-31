@@ -16,51 +16,68 @@ import {
   TokenPair,
   RefreshResponse,
 } from './types';
+import {
+  getAccessToken as getAccessTokenFromStorage,
+  getRefreshToken as getRefreshTokenFromStorage,
+  saveTokens,
+  clearTokens as clearTokensFromStorage,
+  setAccessToken,
+} from '../utils/secureStorage';
 
 // =============================================================================
-// Token Storage Placeholders
-// These will be replaced with secure storage in Task #39
+// Token Storage Wrapper Functions
+// These wrap the secure storage functions for use in the API client
 // =============================================================================
-
-let accessToken: string | null = null;
-let refreshToken: string | null = null;
 
 /**
- * Get the current access token
- * TODO: Replace with secure storage in Task #39
+ * Get the current access token from memory
  */
 export function getAccessToken(): string | null {
-  return accessToken;
+  return getAccessTokenFromStorage();
 }
 
 /**
- * Get the current refresh token
- * TODO: Replace with secure storage in Task #39
+ * Get the current refresh token from SecureStore
+ * Note: This is async but we need a sync version for the interceptor
+ * The actual async version is used in refreshAccessToken
  */
+let cachedRefreshToken: string | null = null;
+
 export function getRefreshToken(): string | null {
-  return refreshToken;
+  return cachedRefreshToken;
 }
 
 /**
- * Store tokens
- * TODO: Replace with secure storage in Task #39
+ * Update the cached refresh token (called after async operations)
  */
-export function setTokens(tokens: TokenPair | null): void {
+export function setCachedRefreshToken(token: string | null): void {
+  cachedRefreshToken = token;
+}
+
+/**
+ * Store tokens using secure storage
+ * Access token goes to memory, refresh token to SecureStore
+ */
+export async function setTokens(tokens: TokenPair | null): Promise<void> {
   if (tokens) {
-    accessToken = tokens.accessToken;
-    refreshToken = tokens.refreshToken;
+    await saveTokens({
+      accessToken: tokens.accessToken,
+      refreshToken: tokens.refreshToken,
+    });
+    // Update cached refresh token
+    cachedRefreshToken = tokens.refreshToken;
   } else {
-    accessToken = null;
-    refreshToken = null;
+    await clearTokensFromStorage();
+    cachedRefreshToken = null;
   }
 }
 
 /**
  * Clear all tokens (logout)
  */
-export function clearTokens(): void {
-  accessToken = null;
-  refreshToken = null;
+export async function clearTokens(): Promise<void> {
+  await clearTokensFromStorage();
+  cachedRefreshToken = null;
 }
 
 // =============================================================================
@@ -98,7 +115,16 @@ function processQueue(error: Error | null, token: string | null = null): void {
  * Attempt to refresh the access token
  */
 async function refreshAccessToken(): Promise<string> {
-  const currentRefreshToken = getRefreshToken();
+  // First try the cached token, then fall back to async SecureStore fetch
+  let currentRefreshToken = getRefreshToken();
+
+  if (!currentRefreshToken) {
+    // Try to get from SecureStore directly
+    currentRefreshToken = await getRefreshTokenFromStorage();
+    if (currentRefreshToken) {
+      setCachedRefreshToken(currentRefreshToken);
+    }
+  }
 
   if (!currentRefreshToken) {
     throw new Error('No refresh token available');
@@ -118,14 +144,23 @@ async function refreshAccessToken(): Promise<string> {
     );
 
     const { tokens } = response.data;
-    setTokens(tokens);
+    await setTokens(tokens);
 
     return tokens.accessToken;
   } catch (error) {
     // Clear tokens on refresh failure
-    clearTokens();
+    await clearTokens();
     throw error;
   }
+}
+
+/**
+ * Initialize the cached refresh token from SecureStore
+ * Call this on app startup before making API requests
+ */
+export async function initializeTokenCache(): Promise<void> {
+  const refreshToken = await getRefreshTokenFromStorage();
+  setCachedRefreshToken(refreshToken);
 }
 
 // =============================================================================
@@ -323,8 +358,8 @@ export function setLogoutCallback(callback: LogoutCallback | null): void {
 /**
  * Trigger logout (clears tokens and calls callback)
  */
-export function triggerLogout(): void {
-  clearTokens();
+export async function triggerLogout(): Promise<void> {
+  await clearTokens();
   if (onLogoutCallback) {
     onLogoutCallback();
   }

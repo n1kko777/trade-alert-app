@@ -14,6 +14,11 @@ import {
   LoginCredentials,
   RegisterCredentials,
 } from '../services/auth';
+import { refreshTokensOnStartup } from '../utils/tokenRefresh';
+import {
+  clearTokens,
+  setTokens as setSecureTokens,
+} from '../api/client';
 
 interface AuthContextValue extends AuthState {
   login: (credentials: LoginCredentials) => Promise<void>;
@@ -34,22 +39,33 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Load stored user on mount
+  // Load stored user and refresh tokens on mount
   useEffect(() => {
-    const loadUser = async () => {
+    const initializeAuth = async () => {
       try {
-        const storedUser = await authService.loadStoredUser();
-        if (storedUser) {
-          setUser(storedUser);
+        // First, try to refresh tokens from secure storage
+        const isAuthenticated = await refreshTokensOnStartup();
+
+        if (isAuthenticated) {
+          // If tokens are valid, load the user from the local cache
+          // In a full implementation, we would fetch user data from the API
+          const storedUser = await authService.loadStoredUser();
+          if (storedUser) {
+            setUser(storedUser);
+          }
+        } else {
+          // No valid tokens, user needs to login
+          setUser(null);
         }
       } catch (error) {
-        console.error('Failed to load stored user:', error);
+        console.error('Failed to initialize auth:', error);
+        setUser(null);
       } finally {
         setIsLoading(false);
       }
     };
 
-    loadUser();
+    initializeAuth();
   }, []);
 
   const login = useCallback(async (credentials: LoginCredentials) => {
@@ -65,6 +81,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   const logout = useCallback(async () => {
     setIsLoading(true);
     try {
+      // Clear tokens from secure storage
+      await clearTokens();
+      // Clear local auth state
       await authService.logout();
       setUser(null);
     } finally {
