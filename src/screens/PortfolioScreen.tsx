@@ -1,10 +1,12 @@
 import React, { useMemo, useState, useEffect, useCallback } from 'react';
 import { View, Text, ScrollView, StyleSheet, TouchableOpacity, RefreshControl, ActivityIndicator, Alert } from 'react-native';
 import { useTheme } from '../theme-context';
+import { useIsOffline } from '../context/NetworkContext';
 import AssetAllocation, { AssetAllocationItem } from '../components/AssetAllocation';
 import PositionCard, { Position } from '../components/PositionCard';
 import PnLChart, { PnLDataPoint } from '../components/PnLChart';
 import { portfolioApi } from '../api';
+import { cachePortfolio, getCachedPortfolio } from '../utils/offlineCache';
 import type { ApiPortfolio, ApiPortfolioAsset, ApiError } from '../api/types';
 
 // Map API portfolio asset to Position format
@@ -47,21 +49,51 @@ const generatePnLHistory = (totalValue: number): PnLDataPoint[] => {
 
 export default function PortfolioScreen() {
   const { theme, styles: globalStyles } = useTheme();
+  const isOffline = useIsOffline();
   const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [portfolio, setPortfolio] = useState<ApiPortfolio | null>(null);
+  const [isStaleData, setIsStaleData] = useState(false);
+  const [cachedAt, setCachedAt] = useState<Date | null>(null);
 
   const fetchPortfolio = useCallback(async () => {
+    // If offline, try to use cached data
+    if (isOffline) {
+      const cached = await getCachedPortfolio();
+      if (cached) {
+        setPortfolio(cached.data);
+        setIsStaleData(true);
+        setCachedAt(cached.cachedAt);
+        setError(null);
+        return;
+      }
+      setError('No internet connection. Cached data not available.');
+      return;
+    }
+
     try {
       setError(null);
       const data = await portfolioApi.getPortfolio();
       setPortfolio(data);
+      setIsStaleData(false);
+      setCachedAt(null);
+      // Cache the fresh data
+      await cachePortfolio(data);
     } catch (err) {
       const apiError = err as ApiError;
-      setError(apiError.message || 'Failed to load portfolio');
+      // On error, try to fall back to cached data
+      const cached = await getCachedPortfolio();
+      if (cached) {
+        setPortfolio(cached.data);
+        setIsStaleData(true);
+        setCachedAt(cached.cachedAt);
+        setError(null);
+      } else {
+        setError(apiError.message || 'Failed to load portfolio');
+      }
     }
-  }, []);
+  }, [isOffline]);
 
   useEffect(() => {
     const loadData = async () => {
@@ -115,12 +147,32 @@ export default function PortfolioScreen() {
   };
 
   const handleAddPosition = useCallback(() => {
+    if (isOffline) {
+      Alert.alert('Offline', 'Adding positions requires an internet connection. Your action will be queued when you go online.');
+      return;
+    }
     Alert.alert('Add Position', 'This feature will allow you to add a new position to your portfolio.');
-  }, []);
+  }, [isOffline]);
 
   const handleSyncExchanges = useCallback(() => {
+    if (isOffline) {
+      Alert.alert('Offline', 'Syncing exchanges requires an internet connection.');
+      return;
+    }
     Alert.alert('Sync Exchanges', 'This feature will sync your positions from connected exchanges.');
-  }, []);
+  }, [isOffline]);
+
+  const formatCacheTime = (date: Date | null) => {
+    if (!date) return '';
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffMins = Math.floor(diffMs / 60000);
+    if (diffMins < 1) return 'just now';
+    if (diffMins < 60) return `${diffMins} min ago`;
+    const diffHours = Math.floor(diffMins / 60);
+    if (diffHours < 24) return `${diffHours} hr ago`;
+    return `${Math.floor(diffHours / 24)} days ago`;
+  };
 
   if (loading) {
     return (
@@ -172,6 +224,15 @@ export default function PortfolioScreen() {
           Portfolio Overview
         </Text>
       </View>
+
+      {/* Stale Data Indicator */}
+      {isStaleData && (
+        <View style={[styles.staleBanner, { backgroundColor: theme.colors.warning }]}>
+          <Text style={[styles.staleBannerText, { color: '#000' }]}>
+            Showing cached data from {formatCacheTime(cachedAt)}
+          </Text>
+        </View>
+      )}
 
       {/* Total Balance Card */}
       <View style={[styles.balanceCard, { backgroundColor: theme.colors.card, borderColor: theme.colors.cardBorder }]}>
@@ -290,7 +351,10 @@ export default function PortfolioScreen() {
       {/* Action Buttons */}
       <View style={styles.actionButtons}>
         <TouchableOpacity
-          style={[styles.actionButton, { backgroundColor: theme.colors.accent }]}
+          style={[
+            styles.actionButton,
+            { backgroundColor: isOffline ? theme.colors.accentMuted : theme.colors.accent }
+          ]}
           activeOpacity={0.8}
           onPress={handleAddPosition}
         >
@@ -299,9 +363,14 @@ export default function PortfolioScreen() {
           </Text>
         </TouchableOpacity>
         <TouchableOpacity
-          style={[styles.actionButton, styles.syncButton, { backgroundColor: theme.colors.metaBadge }]}
+          style={[
+            styles.actionButton,
+            styles.syncButton,
+            { backgroundColor: theme.colors.metaBadge, opacity: isOffline ? 0.5 : 1 }
+          ]}
           activeOpacity={0.8}
           onPress={handleSyncExchanges}
+          disabled={isOffline}
         >
           <Text style={[styles.actionButtonText, { color: theme.colors.textSecondary }]}>
             Sync Exchanges
@@ -487,5 +556,18 @@ const styles = StyleSheet.create({
     fontSize: 14,
     textAlign: 'center',
     lineHeight: 20,
+  },
+  staleBanner: {
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    marginBottom: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  staleBannerText: {
+    fontSize: 12,
+    fontWeight: '500',
   },
 });

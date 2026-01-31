@@ -17,6 +17,9 @@ import createStyles from './src/styles';
 import { ThemeProvider } from './src/theme-context';
 import { AuthProvider } from './src/context/AuthContext';
 import { WebSocketProvider } from './src/context/WebSocketContext';
+import { NetworkProvider } from './src/context/NetworkContext';
+import { OfflineIndicator } from './src/components/OfflineIndicator';
+import { OfflineSyncManager } from './src/components/OfflineSyncManager';
 import { getTheme } from './src/theme';
 import AppNavigator from './src/navigation/AppNavigator';
 
@@ -61,26 +64,31 @@ export default function App() {
   }
 
   return (
-    <AuthProvider>
-      <WebSocketProvider>
-        <ThemeProvider theme={theme}>
-          <SafeAreaProvider>
-            <LinearGradient
-              colors={[theme.colors.appBackground, theme.colors.appBackgroundAlt]}
-              style={styles.app}
-            >
-              <StatusBar style={theme.scheme === 'dark' ? 'light' : 'dark'} />
-              <View style={styles.orbLarge} />
-              <View style={styles.orbSmall} />
-              <SafeAreaView style={styles.safe} edges={['top']}>
-                <NavigationContainer theme={navTheme}>
-                  <AppNavigator />
-                </NavigationContainer>
-              </SafeAreaView>
-            </LinearGradient>
-          </SafeAreaProvider>
-        </ThemeProvider>
-      </WebSocketProvider>
-    </AuthProvider>
+    <NetworkProvider>
+      <OfflineSyncManager>
+        <AuthProvider>
+          <WebSocketProvider>
+            <ThemeProvider theme={theme}>
+              <SafeAreaProvider>
+                <LinearGradient
+                  colors={[theme.colors.appBackground, theme.colors.appBackgroundAlt]}
+                  style={styles.app}
+                >
+                  <StatusBar style={theme.scheme === 'dark' ? 'light' : 'dark'} />
+                  <View style={styles.orbLarge} />
+                  <View style={styles.orbSmall} />
+                  <OfflineIndicator />
+                  <SafeAreaView style={styles.safe} edges={['top']}>
+                    <NavigationContainer theme={navTheme}>
+                      <AppNavigator />
+                    </NavigationContainer>
+                  </SafeAreaView>
+                </LinearGradient>
+              </SafeAreaProvider>
+            </ThemeProvider>
+          </WebSocketProvider>
+        </AuthProvider>
+      </OfflineSyncManager>
+    </NetworkProvider>
   );
 }

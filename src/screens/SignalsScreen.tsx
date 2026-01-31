@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback, useMemo } from 'react';
+import React, { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import {
   View,
   Text,
@@ -9,9 +9,13 @@ import {
   TextInput,
 } from 'react-native';
 import { useTheme } from '../theme-context';
+import { useIsOffline } from '../context/NetworkContext';
 import { useSignals } from '../hooks/useWebSocket';
+import { cacheSignals, getCachedSignals } from '../utils/offlineCache';
+import { signalsApi } from '../api';
 import type { Signal, SignalStats } from '../services/signals/types';
 import type { SignalData } from '../services/websocket';
+import type { ApiSignal } from '../api/types';
 import SignalCard from '../components/SignalCard';
 
 type TabType = 'active' | 'history';
@@ -56,20 +60,97 @@ interface SignalsScreenProps {
   onUpgrade?: () => void;
 }
 
+// Map API signal to local Signal format
+function mapApiSignalToSignal(apiSignal: ApiSignal): Signal {
+  return {
+    id: apiSignal.id,
+    symbol: apiSignal.symbol,
+    exchange: 'binance' as const,
+    direction: apiSignal.direction.toUpperCase() as 'BUY' | 'SELL',
+    entryPrice: apiSignal.entryPrice,
+    currentPrice: apiSignal.entryPrice,
+    takeProfit: [
+      { price: apiSignal.targetPrice, percentage: ((apiSignal.targetPrice - apiSignal.entryPrice) / apiSignal.entryPrice) * 100, hit: false },
+    ],
+    stopLoss: apiSignal.stopLoss,
+    stopLossPercentage: ((apiSignal.entryPrice - apiSignal.stopLoss) / apiSignal.entryPrice) * 100,
+    status: apiSignal.status as 'active' | 'pending' | 'closed',
+    createdAt: new Date(apiSignal.createdAt).getTime(),
+    updatedAt: Date.now(),
+    aiTriggers: [
+      { name: 'Trend Analysis', confirmed: apiSignal.confidence > 60, weight: 0.2 },
+      { name: 'Volume Confirmation', confirmed: apiSignal.confidence > 50, weight: 0.15 },
+      { name: 'Support/Resistance', confirmed: apiSignal.confidence > 70, weight: 0.2 },
+      { name: 'Momentum Indicator', confirmed: apiSignal.confidence > 55, weight: 0.15 },
+      { name: 'Market Sentiment', confirmed: apiSignal.confidence > 65, weight: 0.15 },
+      { name: 'Whale Activity', confirmed: apiSignal.confidence > 75, weight: 0.15 },
+    ],
+    confidence: apiSignal.confidence,
+  };
+}
+
 export default function SignalsScreen({ isPro = false, onUpgrade }: SignalsScreenProps) {
   const { theme } = useTheme();
+  const isOffline = useIsOffline();
   const { signals: signalData, isConnected } = useSignals();
   const [refreshing, setRefreshing] = useState(false);
   const [activeTab, setActiveTab] = useState<TabType>('active');
   const [filter, setFilter] = useState<SignalFilter>({});
   const [searchText, setSearchText] = useState('');
   const [showFilters, setShowFilters] = useState(false);
+  const [cachedSignals, setCachedSignals] = useState<Signal[]>([]);
+  const [isStaleData, setIsStaleData] = useState(false);
+  const [cachedAt, setCachedAt] = useState<Date | null>(null);
+  const lastCachedRef = useRef<number>(0);
 
-  // Map WebSocket data to Signal format
-  const signals = useMemo(() =>
-    signalData.map(mapSignalDataToSignal),
-    [signalData]
-  );
+  // Load cached signals on mount and when offline
+  useEffect(() => {
+    const loadCachedSignals = async () => {
+      const cached = await getCachedSignals();
+      if (cached) {
+        setCachedSignals(cached.data.map(mapApiSignalToSignal));
+        setCachedAt(cached.cachedAt);
+      }
+    };
+    loadCachedSignals();
+  }, []);
+
+  // Cache signals when we have fresh data (debounced)
+  useEffect(() => {
+    if (signalData.length > 0 && !isOffline) {
+      const now = Date.now();
+      // Only cache every 30 seconds to avoid excessive writes
+      if (now - lastCachedRef.current > 30000) {
+        lastCachedRef.current = now;
+        // Convert SignalData to ApiSignal format for caching
+        const apiSignals: ApiSignal[] = signalData.map(s => ({
+          id: s.id,
+          symbol: s.symbol,
+          direction: s.direction as 'buy' | 'sell',
+          entryPrice: s.entryPrice,
+          targetPrice: s.targetPrice,
+          stopLoss: s.stopLoss,
+          confidence: s.confidence,
+          minTier: 'free' as const,
+          status: s.status as 'active' | 'closed' | 'expired',
+          reason: 'AI Signal',
+          createdAt: s.createdAt,
+        }));
+        cacheSignals(apiSignals);
+        setIsStaleData(false);
+      }
+    }
+  }, [signalData, isOffline]);
+
+  // Map WebSocket data to Signal format, use cached if offline
+  const signals = useMemo(() => {
+    if (isOffline && signalData.length === 0) {
+      setIsStaleData(cachedSignals.length > 0);
+      return cachedSignals;
+    }
+    setIsStaleData(false);
+    return signalData.map(mapSignalDataToSignal);
+  }, [signalData, isOffline, cachedSignals]);
 
   // Calculate stats from signals
   const stats: SignalStats | null = useMemo(() => {
@@ -292,6 +373,18 @@ export default function SignalsScreen({ isPro = false, onUpgrade }: SignalsScree
     return renderProGate();
   };
 
+  const formatCacheTime = (date: Date | null) => {
+    if (!date) return '';
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffMins = Math.floor(diffMs / 60000);
+    if (diffMins < 1) return 'just now';
+    if (diffMins < 60) return `${diffMins} min ago`;
+    const diffHours = Math.floor(diffMins / 60);
+    if (diffHours < 24) return `${diffHours} hr ago`;
+    return `${Math.floor(diffHours / 24)} days ago`;
+  };
+
   return (
     <View style={[styles.container, { backgroundColor: 'transparent' }]}>
       <Text style={[styles.title, { color: theme.colors.textPrimary }]}>
@@ -300,6 +393,15 @@ export default function SignalsScreen({ isPro = false, onUpgrade }: SignalsScree
       <Text style={[styles.subtitle, { color: theme.colors.textSecondary }]}>
         AI-powered trading signals with 6 trigger confirmation
       </Text>
+
+      {/* Stale Data Indicator */}
+      {isStaleData && (
+        <View style={[styles.staleBanner, { backgroundColor: theme.colors.warning }]}>
+          <Text style={[styles.staleBannerText, { color: '#000' }]}>
+            Showing cached signals from {formatCacheTime(cachedAt)}
+          </Text>
+        </View>
+      )}
 
       <FlatList
         data={displayedSignals}
@@ -452,5 +554,19 @@ const styles = StyleSheet.create({
   },
   limitText: {
     fontSize: 12,
+  },
+  staleBanner: {
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    marginHorizontal: 16,
+    borderRadius: 8,
+    marginBottom: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  staleBannerText: {
+    fontSize: 12,
+    fontWeight: '500',
   },
 });

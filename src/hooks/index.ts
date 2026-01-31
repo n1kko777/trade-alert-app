@@ -16,6 +16,8 @@ export {
   useWebSocketContext,
 } from './useWebSocket';
 
+export { useOfflineSync } from './useOfflineSync';
+
 export type {
   WebSocketMessage,
   WebSocketMessageType,
