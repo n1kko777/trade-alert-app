@@ -7,6 +7,7 @@ import fastifyJwt from '@fastify/jwt';
 import { getConfig } from './config/index.js';
 import { initLogger, getLogger } from './utils/logger.js';
 import errorHandlerPlugin from './plugins/errorHandler.js';
+import { healthRoutes } from './modules/health/health.controller.js';
 
 export async function buildApp(): Promise<FastifyInstance> {
   const config = getConfig();
@@ -83,10 +84,8 @@ export async function buildApp(): Promise<FastifyInstance> {
     },
   });
 
-  // Health check endpoint
-  app.get('/health', async () => {
-    return { status: 'ok', timestamp: new Date().toISOString() };
-  });
+  // Health check routes
+  await app.register(healthRoutes);
 
   logger.info('Application built successfully');
 

@@ -1,10 +1,20 @@
 import 'dotenv/config';
 import { loadConfig } from './config/index.js';
+import { connectDatabase, closeDatabase } from './config/database.js';
+import { connectRedis, closeRedis } from './config/redis.js';
 import { buildApp } from './app.js';
 
 async function main(): Promise<void> {
   // Load and validate configuration
   const config = loadConfig();
+
+  // Connect to database
+  await connectDatabase();
+  console.log('Database connected');
+
+  // Connect to Redis
+  await connectRedis();
+  console.log('Redis connected');
 
   // Build the Fastify app
   const app = await buildApp();
@@ -15,6 +25,8 @@ async function main(): Promise<void> {
     process.on(signal, async () => {
       app.log.info(`Received ${signal}, shutting down gracefully...`);
       await app.close();
+      await closeRedis();
+      await closeDatabase();
       process.exit(0);
     });
   });

@@ -25,7 +25,7 @@ services:
     networks:
       - internal
     healthcheck:
-      test: ["CMD", "wget", "-q", "--spider", "http://localhost:3000/health"]
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:3000/health/live"]
       interval: 30s
       timeout: 10s
       retries: 3
