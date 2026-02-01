@@ -70,10 +70,6 @@ function extractPriceLevels(text: string): { support: number[]; resistance: numb
   const support: number[] = [];
   const resistance: number[] = [];
 
-  // Pattern to match ONLY prices with $ sign (e.g., $1.50, $78,000.50)
-  // This avoids matching "24-hour", "1-2%", etc.
-  const pricePattern = /\$([\d,]+(?:\.\d+)?)/g;
-
   // Split text into sentences for context analysis
   const sentences = text.split(/[.!?\n]+/);
 
@@ -81,12 +77,13 @@ function extractPriceLevels(text: string): { support: number[]; resistance: numb
     const lowerSentence = sentence.toLowerCase();
     const prices: number[] = [];
 
-    // Extract all dollar prices from this sentence
-    let match;
-    while ((match = pricePattern.exec(sentence)) !== null) {
+    // Use matchAll to extract all dollar prices from this sentence
+    // Pattern matches $1.50, $78,000.50, $100, etc.
+    const matches = sentence.matchAll(/\$([\d,]+(?:\.\d+)?)/g);
+    for (const match of matches) {
       const priceStr = match[1].replace(/,/g, '');
       const price = parseFloat(priceStr);
-      // Accept any valid price > 0 (no minimum threshold)
+      // Accept any valid price > 0
       if (!isNaN(price) && price > 0) {
         prices.push(price);
       }

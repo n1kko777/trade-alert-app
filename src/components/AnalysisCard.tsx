@@ -83,9 +83,13 @@ ${analysis.reasoning}`;
 
   const formatPrice = (price: number) => {
     if (price >= 1000) {
-      return `$${price.toLocaleString()}`;
+      return `$${price.toLocaleString('en-US', { maximumFractionDigits: 2 })}`;
     }
-    return `$${price.toPrecision(4)}`;
+    if (price >= 1) {
+      return `$${price.toFixed(2)}`;
+    }
+    // For very small prices (< $1), show more decimals
+    return `$${price.toFixed(4)}`;
   };
 
   return (
