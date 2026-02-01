@@ -8,7 +8,10 @@ import {
   TouchableOpacity,
   TextInput,
 } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useTheme } from '../theme-context';
+import type { RootStackParamList } from '../navigation/types';
 import { useIsOffline } from '../context/NetworkContext';
 import { useSignals } from '../hooks/useWebSocket';
 import { cacheSignals, getCachedSignals } from '../utils/offlineCache';
@@ -89,8 +92,11 @@ function mapApiSignalToSignal(apiSignal: ApiSignal): Signal {
   };
 }
 
+type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
+
 export default function SignalsScreen({ isPro = false, onUpgrade }: SignalsScreenProps) {
   const { theme } = useTheme();
+  const navigation = useNavigation<NavigationProp>();
   const isOffline = useIsOffline();
   const { signals: signalData, isConnected } = useSignals();
   const [refreshing, setRefreshing] = useState(false);
@@ -222,9 +228,8 @@ export default function SignalsScreen({ isPro = false, onUpgrade }: SignalsScree
   }, [filteredSignals, isPro]);
 
   const handleSignalPress = useCallback((signal: Signal) => {
-    // TODO: Navigate to signal details
-    console.log('Signal pressed:', signal.id);
-  }, []);
+    navigation.navigate('SignalDetail', { signalId: signal.id });
+  }, [navigation]);
 
   const renderSignal = useCallback(({ item }: { item: Signal }) => (
     <SignalCard signal={item} onPress={handleSignalPress} />
@@ -238,11 +243,11 @@ export default function SignalsScreen({ isPro = false, onUpgrade }: SignalsScree
     return (
       <View style={[styles.statsCard, { backgroundColor: theme.colors.panel }]}>
         <Text style={[styles.statsTitle, { color: theme.colors.textPrimary }]}>
-          Statistica
+          Статистика
         </Text>
         <View style={styles.statsGrid}>
           <View style={[styles.statItem, { backgroundColor: theme.colors.metricCard }]}>
-            <Text style={[styles.statLabel, { color: theme.colors.textMuted }]}>Win Rate</Text>
+            <Text style={[styles.statLabel, { color: theme.colors.textMuted }]}>Винрейт</Text>
             <Text style={[
               styles.statValue,
               { color: stats.winRate >= 50 ? theme.colors.changeUpText : theme.colors.changeDownText }
@@ -251,13 +256,13 @@ export default function SignalsScreen({ isPro = false, onUpgrade }: SignalsScree
             </Text>
           </View>
           <View style={[styles.statItem, { backgroundColor: theme.colors.metricCard }]}>
-            <Text style={[styles.statLabel, { color: theme.colors.textMuted }]}>Total Signals</Text>
+            <Text style={[styles.statLabel, { color: theme.colors.textMuted }]}>Всего сигналов</Text>
             <Text style={[styles.statValue, { color: theme.colors.textPrimary }]}>
               {stats.totalSignals}
             </Text>
           </View>
           <View style={[styles.statItem, { backgroundColor: theme.colors.metricCard }]}>
-            <Text style={[styles.statLabel, { color: theme.colors.textMuted }]}>Avg Profit</Text>
+            <Text style={[styles.statLabel, { color: theme.colors.textMuted }]}>Ср. прибыль</Text>
             <Text style={[
               styles.statValue,
               { color: stats.avgProfit >= 0 ? theme.colors.changeUpText : theme.colors.changeDownText }
@@ -266,7 +271,7 @@ export default function SignalsScreen({ isPro = false, onUpgrade }: SignalsScree
             </Text>
           </View>
           <View style={[styles.statItem, { backgroundColor: theme.colors.metricCard }]}>
-            <Text style={[styles.statLabel, { color: theme.colors.textMuted }]}>Total Profit</Text>
+            <Text style={[styles.statLabel, { color: theme.colors.textMuted }]}>Общая прибыль</Text>
             <Text style={[
               styles.statValue,
               { color: stats.totalProfit >= 0 ? theme.colors.changeUpText : theme.colors.changeDownText }
@@ -288,19 +293,19 @@ export default function SignalsScreen({ isPro = false, onUpgrade }: SignalsScree
           <Text style={styles.proBadgeText}>PRO</Text>
         </View>
         <Text style={[styles.proTitle, { color: theme.colors.textPrimary }]}>
-          Unlock All Signals
+          Разблокировать все сигналы
         </Text>
         <Text style={[styles.proDescription, { color: theme.colors.textSecondary }]}>
-          Get unlimited access to all trading signals, advanced filters, and real-time notifications.
+          Получите неограниченный доступ ко всем торговым сигналам, расширенным фильтрам и уведомлениям в реальном времени.
         </Text>
         <TouchableOpacity
           style={[styles.upgradeButton, { backgroundColor: theme.colors.accent }]}
           onPress={onUpgrade}
         >
-          <Text style={styles.upgradeButtonText}>Upgrade to Pro</Text>
+          <Text style={styles.upgradeButtonText}>Перейти на Pro</Text>
         </TouchableOpacity>
         <Text style={[styles.limitText, { color: theme.colors.textMuted }]}>
-          Showing {displayedSignals.length} of {filteredSignals.length} signals
+          Показано {displayedSignals.length} из {filteredSignals.length} сигналов
         </Text>
       </View>
     );
@@ -319,7 +324,7 @@ export default function SignalsScreen({ isPro = false, onUpgrade }: SignalsScree
           styles.tabText,
           { color: activeTab === 'active' ? theme.colors.buttonText : theme.colors.textMuted }
         ]}>
-          Aktivnyye ({signals.filter(s => s.status !== 'closed').length})
+          Активные ({signals.filter(s => s.status !== 'closed').length})
         </Text>
       </TouchableOpacity>
       <TouchableOpacity
@@ -333,7 +338,7 @@ export default function SignalsScreen({ isPro = false, onUpgrade }: SignalsScree
           styles.tabText,
           { color: activeTab === 'history' ? theme.colors.buttonText : theme.colors.textMuted }
         ]}>
-          Istoriya ({signals.filter(s => s.status === 'closed').length})
+          История ({signals.filter(s => s.status === 'closed').length})
         </Text>
       </TouchableOpacity>
     </View>
@@ -349,7 +354,7 @@ export default function SignalsScreen({ isPro = false, onUpgrade }: SignalsScree
             backgroundColor: theme.colors.input,
             color: theme.colors.textPrimary,
           }]}
-          placeholder="Search symbol or exchange..."
+          placeholder="Поиск по символу или бирже..."
           placeholderTextColor={theme.colors.textPlaceholder}
           value={searchText}
           onChangeText={setSearchText}
@@ -362,8 +367,8 @@ export default function SignalsScreen({ isPro = false, onUpgrade }: SignalsScree
     <View style={styles.emptyContainer}>
       <Text style={[styles.emptyText, { color: theme.colors.textSecondary }]}>
         {activeTab === 'active'
-          ? 'No active signals. New signals coming soon...'
-          : 'No signal history yet.'}
+          ? 'Нет активных сигналов. Новые сигналы скоро появятся...'
+          : 'История сигналов пуста.'}
       </Text>
     </View>
   );
@@ -378,27 +383,27 @@ export default function SignalsScreen({ isPro = false, onUpgrade }: SignalsScree
     const now = new Date();
     const diffMs = now.getTime() - date.getTime();
     const diffMins = Math.floor(diffMs / 60000);
-    if (diffMins < 1) return 'just now';
-    if (diffMins < 60) return `${diffMins} min ago`;
+    if (diffMins < 1) return 'только что';
+    if (diffMins < 60) return `${diffMins} мин назад`;
     const diffHours = Math.floor(diffMins / 60);
-    if (diffHours < 24) return `${diffHours} hr ago`;
-    return `${Math.floor(diffHours / 24)} days ago`;
+    if (diffHours < 24) return `${diffHours} ч назад`;
+    return `${Math.floor(diffHours / 24)} дней назад`;
   };
 
   return (
     <View style={[styles.container, { backgroundColor: 'transparent' }]}>
       <Text style={[styles.title, { color: theme.colors.textPrimary }]}>
-        Signaly
+        Сигналы
       </Text>
       <Text style={[styles.subtitle, { color: theme.colors.textSecondary }]}>
-        AI-powered trading signals with 6 trigger confirmation
+        AI-сигналы с подтверждением по 6 триггерам
       </Text>
 
       {/* Stale Data Indicator */}
       {isStaleData && (
         <View style={[styles.staleBanner, { backgroundColor: theme.colors.warning }]}>
           <Text style={[styles.staleBannerText, { color: '#000' }]}>
-            Showing cached signals from {formatCacheTime(cachedAt)}
+            Показаны кэшированные сигналы от {formatCacheTime(cachedAt)}
           </Text>
         </View>
       )}

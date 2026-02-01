@@ -6,6 +6,8 @@ import React, {
   useEffect,
   useMemo,
 } from 'react';
+
+declare const __DEV__: boolean;
 import {
   SubscriptionTier,
   LoginCredentials,
@@ -24,6 +26,7 @@ import {
   logout as apiLogout,
   getCurrentUser,
   verify2FA,
+  upgradeSubscription as apiUpgradeSubscription,
 } from '../api/auth.api';
 import type { ApiUser, LoginResponse } from '../api/types';
 
@@ -234,26 +237,56 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         password: credentials.password,
       });
 
-      // After registration, user needs to login
-      // Some APIs might return tokens directly
-      if (response.user) {
-        // Auto-login after registration is not typical for security
-        // User should login with their new credentials
-        console.log('Registration successful, please login');
+      // After registration, auto-login if tokens are provided
+      if (response.tokens && response.user) {
+        await setTokens(response.tokens);
+        setUser(mapApiUserToUser(response.user));
       }
+      // Otherwise user needs to login separately
     } finally {
       setIsLoading(false);
     }
   }, []);
 
   const upgradeSubscription = useCallback(async (tier: SubscriptionTier) => {
-    // This would typically call a payment API
-    // For now, just update local state if we have a user
-    if (user) {
-      setUser({
-        ...user,
-        subscriptionTier: tier,
-      });
+    if (!user) {
+      throw new Error('Must be logged in to upgrade subscription');
+    }
+
+    setIsLoading(true);
+    try {
+      // Map local tier enum to API tier string
+      const tierMap: Record<SubscriptionTier, 'free' | 'pro' | 'premium' | 'vip'> = {
+        [SubscriptionTier.FREE]: 'free',
+        [SubscriptionTier.PRO]: 'pro',
+        [SubscriptionTier.PREMIUM]: 'premium',
+        [SubscriptionTier.VIP]: 'vip',
+      };
+
+      const response = await apiUpgradeSubscription(tierMap[tier]);
+
+      if (response.success && response.user) {
+        setUser(mapApiUserToUser(response.user));
+      } else {
+        // Fallback: update local state if API doesn't return user
+        setUser({
+          ...user,
+          subscriptionTier: tier,
+        });
+      }
+    } catch (error) {
+      // In development, allow local-only upgrade for testing
+      if (__DEV__) {
+        console.warn('Subscription API failed, using local fallback:', error);
+        setUser({
+          ...user,
+          subscriptionTier: tier,
+        });
+      } else {
+        throw error;
+      }
+    } finally {
+      setIsLoading(false);
     }
   }, [user]);
 

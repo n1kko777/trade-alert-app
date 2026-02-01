@@ -33,7 +33,7 @@ function HotCoins({ coins, onCoinPress }: HotCoinsProps) {
 
   return (
     <View style={styles.container}>
-      <Text style={[styles.title, { color: theme.colors.textPrimary }]}>Hot Coins</Text>
+      <Text style={[styles.title, { color: theme.colors.textPrimary }]}>Популярные монеты</Text>
       <FlatList
         data={coins}
         renderItem={renderCoin}

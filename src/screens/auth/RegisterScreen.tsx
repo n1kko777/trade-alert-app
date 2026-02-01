@@ -10,6 +10,7 @@ import {
   ScrollView,
   ActivityIndicator,
   Alert,
+  Linking,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -36,9 +37,29 @@ const RegisterScreen: React.FC = () => {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [termsAccepted, setTermsAccepted] = useState(false);
 
+  const validateEmail = (emailToValidate: string): boolean => {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(emailToValidate);
+  };
+
   const handleRegister = async () => {
     if (!name.trim() || !email.trim() || !password || !confirmPassword) {
       Alert.alert('Ошибка', 'Заполните все поля');
+      return;
+    }
+
+    if (!validateEmail(email.trim())) {
+      Alert.alert('Ошибка', 'Введите корректный email адрес');
+      return;
+    }
+
+    if (password.length < 6) {
+      Alert.alert('Ошибка', 'Пароль должен содержать минимум 6 символов');
+      return;
+    }
+
+    if (password !== confirmPassword) {
+      Alert.alert('Ошибка', 'Пароли не совпадают');
       return;
     }
 
@@ -54,6 +75,17 @@ const RegisterScreen: React.FC = () => {
         password,
         confirmPassword,
       });
+
+      Alert.alert(
+        'Регистрация успешна',
+        'Добро пожаловать в TradePulse! Теперь вы можете пользоваться всеми функциями приложения.',
+        [
+          {
+            text: 'OK',
+            onPress: () => navigation.goBack(),
+          },
+        ]
+      );
     } catch (error) {
       Alert.alert(
         'Ошибка регистрации',
@@ -62,19 +94,13 @@ const RegisterScreen: React.FC = () => {
     }
   };
 
-  const handleTermsPress = () => {
-    Alert.alert(
-      'Условия использования',
-      'Полный текст условий использования будет доступен позже.'
-    );
-  };
+  const handleTermsPress = useCallback(() => {
+    Linking.openURL('https://tradepulse.app/terms');
+  }, []);
 
-  const handlePrivacyPress = () => {
-    Alert.alert(
-      'Политика конфиденциальности',
-      'Полный текст политики конфиденциальности будет доступен позже.'
-    );
-  };
+  const handlePrivacyPress = useCallback(() => {
+    Linking.openURL('https://tradepulse.app/privacy');
+  }, []);
 
   return (
     <KeyboardAvoidingView

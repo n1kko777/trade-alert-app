@@ -14,12 +14,12 @@ export default function PortfolioSummary({ balance, changePct, currency = 'USD' 
 
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.card }]}>
-      <Text style={[styles.label, { color: theme.colors.textSecondary }]}>Portfolio</Text>
+      <Text style={[styles.label, { color: theme.colors.textSecondary }]}>Портфель</Text>
       <Text style={[styles.balance, { color: theme.colors.textPrimary }]}>
         {currency} {balance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
       </Text>
       <Text style={[styles.change, { color: isPositive ? theme.colors.changeUpText : theme.colors.changeDownText }]}>
-        {isPositive ? '\u2191' : '\u2193'} {isPositive ? '+' : ''}{changePct.toFixed(2)}% today
+        {isPositive ? '\u2191' : '\u2193'} {isPositive ? '+' : ''}{changePct.toFixed(2)}% сегодня
       </Text>
     </View>
   );

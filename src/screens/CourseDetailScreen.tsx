@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import {
   ScrollView,
   Text,
@@ -6,12 +6,15 @@ import {
   TouchableOpacity,
   StyleSheet,
 } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useTheme } from '../theme-context';
 import { Course, Lesson, demoCourses } from '../data/educationData';
 import LessonPlayer from '../components/LessonPlayer';
 import type { RootStackParamList } from '../navigation/types';
+
+const PROGRESS_STORAGE_KEY = '@tradepulse:course_progress';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 type RouteProps = RouteProp<RootStackParamList, 'CourseDetail'>;
@@ -30,28 +33,55 @@ export default function CourseDetailScreen() {
     navigation.goBack();
   };
 
-  const onLessonComplete = (lessonId: string) => {
-    // In production, this would update the user's progress
-    console.log('Lesson completed:', lessonId);
-  };
   const { theme, styles } = useTheme();
   const [selectedLesson, setSelectedLesson] = useState<Lesson | null>(null);
   const [completedLessons, setCompletedLessons] = useState<Set<string>>(
     new Set(course.lessons.filter((l) => l.completed).map((l) => l.id))
   );
 
+  // Load saved progress on mount
+  useEffect(() => {
+    const loadProgress = async () => {
+      try {
+        const stored = await AsyncStorage.getItem(PROGRESS_STORAGE_KEY);
+        if (stored) {
+          const allProgress: Record<string, string[]> = JSON.parse(stored);
+          const courseProgress = allProgress[courseId];
+          if (courseProgress && Array.isArray(courseProgress)) {
+            setCompletedLessons(new Set(courseProgress));
+          }
+        }
+      } catch (error) {
+        console.warn('Failed to load course progress:', error);
+      }
+    };
+    loadProgress();
+  }, [courseId]);
+
+  // Save progress when completed lessons change
+  const saveProgress = useCallback(async (lessonIds: Set<string>) => {
+    try {
+      const stored = await AsyncStorage.getItem(PROGRESS_STORAGE_KEY);
+      const allProgress: Record<string, string[]> = stored ? JSON.parse(stored) : {};
+      allProgress[courseId] = Array.from(lessonIds);
+      await AsyncStorage.setItem(PROGRESS_STORAGE_KEY, JSON.stringify(allProgress));
+    } catch (error) {
+      console.warn('Failed to save course progress:', error);
+    }
+  }, [courseId]);
+
   const completedCount = completedLessons.size;
   const totalLessons = course.lessons.length;
   const progressPercent = totalLessons > 0 ? (completedCount / totalLessons) * 100 : 0;
 
-  const handleMarkComplete = (lessonId: string) => {
+  const handleMarkComplete = useCallback((lessonId: string) => {
     setCompletedLessons((prev) => {
       const next = new Set(prev);
       next.add(lessonId);
+      saveProgress(next);
       return next;
     });
-    onLessonComplete?.(lessonId);
-  };
+  }, [saveProgress]);
 
   const getCurrentLessonIndex = () => {
     if (!selectedLesson) return -1;

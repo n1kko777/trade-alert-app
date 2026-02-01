@@ -1,13 +1,38 @@
 import React, { useMemo, useState, useEffect, useCallback } from 'react';
-import { View, Text, ScrollView, StyleSheet, TouchableOpacity, RefreshControl, ActivityIndicator, Alert } from 'react-native';
+import {
+  View,
+  Text,
+  ScrollView,
+  FlatList,
+  StyleSheet,
+  TouchableOpacity,
+  RefreshControl,
+  ActivityIndicator,
+  Alert,
+  Modal,
+  TextInput,
+  KeyboardAvoidingView,
+  Platform,
+} from 'react-native';
+import { useNavigation } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../theme-context';
 import { useIsOffline } from '../context/NetworkContext';
 import AssetAllocation, { AssetAllocationItem } from '../components/AssetAllocation';
 import PositionCard, { Position } from '../components/PositionCard';
 import PnLChart, { PnLDataPoint } from '../components/PnLChart';
-import { portfolioApi } from '../api';
+import { portfolioApi, marketApi } from '../api';
 import { cachePortfolio, getCachedPortfolio } from '../utils/offlineCache';
-import type { ApiPortfolio, ApiPortfolioAsset, ApiError } from '../api/types';
+import type { ApiPortfolio, ApiPortfolioAsset, ApiError, ApiTicker } from '../api/types';
+import type { RootStackParamList } from '../navigation/types';
+
+// Coin item for picker
+interface CoinItem {
+  symbol: string;
+  name: string;
+  price: number;
+}
 
 // Map API portfolio asset to Position format
 function mapAssetToPosition(asset: ApiPortfolioAsset): Position {
@@ -47,7 +72,10 @@ const generatePnLHistory = (totalValue: number): PnLDataPoint[] => {
   return points;
 };
 
+type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
+
 export default function PortfolioScreen() {
+  const navigation = useNavigation<NavigationProp>();
   const { theme, styles: globalStyles } = useTheme();
   const isOffline = useIsOffline();
   const [refreshing, setRefreshing] = useState(false);
@@ -56,6 +84,21 @@ export default function PortfolioScreen() {
   const [portfolio, setPortfolio] = useState<ApiPortfolio | null>(null);
   const [isStaleData, setIsStaleData] = useState(false);
   const [cachedAt, setCachedAt] = useState<Date | null>(null);
+
+  // Modal state for adding/editing positions
+  const [modalVisible, setModalVisible] = useState(false);
+  const [editingPosition, setEditingPosition] = useState<Position | null>(null);
+  const [formSymbol, setFormSymbol] = useState('');
+  const [formQuantity, setFormQuantity] = useState('');
+  const [formEntryPrice, setFormEntryPrice] = useState('');
+  const [formSubmitting, setFormSubmitting] = useState(false);
+
+  // Coin picker state
+  const [coinPickerVisible, setCoinPickerVisible] = useState(false);
+  const [coinSearch, setCoinSearch] = useState('');
+  const [availableCoins, setAvailableCoins] = useState<CoinItem[]>([]);
+  const [coinsLoading, setCoinsLoading] = useState(false);
+  const [selectedCoinPrice, setSelectedCoinPrice] = useState<number | null>(null);
 
   const fetchPortfolio = useCallback(async () => {
     // If offline, try to use cached data
@@ -68,7 +111,7 @@ export default function PortfolioScreen() {
         setError(null);
         return;
       }
-      setError('No internet connection. Cached data not available.');
+      setError('Нет подключения к интернету. Кэшированные данные недоступны.');
       return;
     }
 
@@ -90,7 +133,7 @@ export default function PortfolioScreen() {
         setCachedAt(cached.cachedAt);
         setError(null);
       } else {
-        setError(apiError.message || 'Failed to load portfolio');
+        setError(apiError.message || 'Не удалось загрузить портфель');
       }
     }
   }, [isOffline]);
@@ -146,20 +189,198 @@ export default function PortfolioScreen() {
     return `${sign}${pct.toFixed(2)}%`;
   };
 
-  const handleAddPosition = useCallback(() => {
+  // Load available coins from API
+  const loadCoins = useCallback(async () => {
+    if (availableCoins.length > 0) return; // Already loaded
+
+    setCoinsLoading(true);
+    try {
+      const tickers = await marketApi.getTickers();
+      const coins: CoinItem[] = tickers
+        .filter(t => t.symbol.endsWith('USDT'))
+        .map(t => ({
+          symbol: t.symbol.replace('USDT', ''),
+          name: t.symbol,
+          price: t.price,
+        }))
+        .sort((a, b) => a.symbol.localeCompare(b.symbol));
+      setAvailableCoins(coins);
+    } catch (err) {
+      console.error('Failed to load coins:', err);
+      // Fallback to common coins if API fails
+      const fallbackCoins: CoinItem[] = [
+        { symbol: 'BTC', name: 'BTCUSDT', price: 0 },
+        { symbol: 'ETH', name: 'ETHUSDT', price: 0 },
+        { symbol: 'SOL', name: 'SOLUSDT', price: 0 },
+        { symbol: 'BNB', name: 'BNBUSDT', price: 0 },
+        { symbol: 'XRP', name: 'XRPUSDT', price: 0 },
+        { symbol: 'ADA', name: 'ADAUSDT', price: 0 },
+        { symbol: 'DOGE', name: 'DOGEUSDT', price: 0 },
+        { symbol: 'AVAX', name: 'AVAXUSDT', price: 0 },
+        { symbol: 'DOT', name: 'DOTUSDT', price: 0 },
+        { symbol: 'MATIC', name: 'MATICUSDT', price: 0 },
+      ];
+      setAvailableCoins(fallbackCoins);
+    } finally {
+      setCoinsLoading(false);
+    }
+  }, [availableCoins.length]);
+
+  // Filter coins based on search
+  const filteredCoins = useMemo(() => {
+    if (!coinSearch.trim()) return availableCoins;
+    const search = coinSearch.trim().toUpperCase();
+    return availableCoins.filter(
+      coin => coin.symbol.includes(search) || coin.name.includes(search)
+    );
+  }, [availableCoins, coinSearch]);
+
+  const openCoinPicker = useCallback(() => {
+    setCoinSearch('');
+    setCoinPickerVisible(true);
+    loadCoins();
+  }, [loadCoins]);
+
+  const selectCoin = useCallback((coin: CoinItem) => {
+    setFormSymbol(coin.symbol);
+    setSelectedCoinPrice(coin.price);
+    // Auto-fill current price as entry price if empty
+    if (!formEntryPrice && coin.price > 0) {
+      setFormEntryPrice(coin.price.toString());
+    }
+    setCoinPickerVisible(false);
+  }, [formEntryPrice]);
+
+  const openAddModal = useCallback(() => {
     if (isOffline) {
-      Alert.alert('Offline', 'Adding positions requires an internet connection. Your action will be queued when you go online.');
+      Alert.alert('Офлайн', 'Для добавления позиций требуется подключение к интернету.');
       return;
     }
-    Alert.alert('Add Position', 'This feature will allow you to add a new position to your portfolio.');
+    setEditingPosition(null);
+    setFormSymbol('');
+    setFormQuantity('');
+    setFormEntryPrice('');
+    setSelectedCoinPrice(null);
+    setModalVisible(true);
   }, [isOffline]);
+
+  const openEditModal = useCallback((position: Position) => {
+    if (isOffline) {
+      Alert.alert('Офлайн', 'Для редактирования позиций требуется подключение к интернету.');
+      return;
+    }
+    setEditingPosition(position);
+    setFormSymbol(position.symbol);
+    setFormQuantity(position.quantity.toString());
+    setFormEntryPrice(position.entryPrice.toString());
+    setModalVisible(true);
+  }, [isOffline]);
+
+  const closeModal = useCallback(() => {
+    setModalVisible(false);
+    setEditingPosition(null);
+    setFormSymbol('');
+    setFormQuantity('');
+    setFormEntryPrice('');
+  }, []);
+
+  const handleSubmitPosition = useCallback(async () => {
+    // Validate form
+    const symbol = formSymbol.trim().toUpperCase();
+    const quantity = parseFloat(formQuantity);
+    const entryPrice = parseFloat(formEntryPrice);
+
+    if (!symbol) {
+      Alert.alert('Ошибка', 'Выберите монету из списка');
+      return;
+    }
+
+    if (isNaN(quantity) || quantity <= 0) {
+      Alert.alert('Ошибка', 'Введите корректное количество');
+      return;
+    }
+
+    if (isNaN(entryPrice) || entryPrice <= 0) {
+      Alert.alert('Ошибка', 'Введите корректную цену входа');
+      return;
+    }
+
+    setFormSubmitting(true);
+
+    try {
+      const symbolWithUsdt = symbol.includes('USDT') ? symbol : `${symbol}USDT`;
+
+      if (editingPosition) {
+        // Update existing position
+        await portfolioApi.updateAsset(editingPosition.id, {
+          amount: quantity,
+          avgBuyPrice: entryPrice,
+        });
+      } else {
+        // Add new position
+        await portfolioApi.addAsset({
+          symbol: symbolWithUsdt,
+          amount: quantity,
+          avgBuyPrice: entryPrice,
+        });
+      }
+
+      closeModal();
+      await fetchPortfolio();
+    } catch (err) {
+      const apiError = err as ApiError;
+      Alert.alert('Ошибка', apiError.message || 'Не удалось сохранить позицию');
+    } finally {
+      setFormSubmitting(false);
+    }
+  }, [formSymbol, formQuantity, formEntryPrice, editingPosition, closeModal, fetchPortfolio]);
+
+  const handleDeletePosition = useCallback(async (position: Position) => {
+    if (isOffline) {
+      Alert.alert('Офлайн', 'Для удаления позиций требуется подключение к интернету.');
+      return;
+    }
+
+    Alert.alert(
+      'Удалить позицию',
+      `Вы уверены, что хотите удалить ${position.symbol}?`,
+      [
+        { text: 'Отмена', style: 'cancel' },
+        {
+          text: 'Удалить',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await portfolioApi.deleteAsset(position.id);
+              await fetchPortfolio();
+            } catch (err) {
+              const apiError = err as ApiError;
+              Alert.alert('Ошибка', apiError.message || 'Не удалось удалить позицию');
+            }
+          },
+        },
+      ]
+    );
+  }, [isOffline, fetchPortfolio]);
+
+  const handleViewChart = useCallback((position: Position) => {
+    navigation.navigate('ChartFullscreen', {
+      symbol: `${position.symbol}USDT`,
+      exchange: 'binance',
+      timeframe: '1h',
+    });
+  }, [navigation]);
 
   const handleSyncExchanges = useCallback(() => {
     if (isOffline) {
-      Alert.alert('Offline', 'Syncing exchanges requires an internet connection.');
+      Alert.alert('Офлайн', 'Для синхронизации требуется подключение к интернету.');
       return;
     }
-    Alert.alert('Sync Exchanges', 'This feature will sync your positions from connected exchanges.');
+    Alert.alert(
+      'Синхронизация бирж',
+      'Подключение к биржам через API будет доступно в следующем обновлении.\n\nВ настоящее время вы можете добавлять позиции вручную.',
+      [{ text: 'OK' }]
+    );
   }, [isOffline]);
 
   const formatCacheTime = (date: Date | null) => {
@@ -167,11 +388,12 @@ export default function PortfolioScreen() {
     const now = new Date();
     const diffMs = now.getTime() - date.getTime();
     const diffMins = Math.floor(diffMs / 60000);
-    if (diffMins < 1) return 'just now';
-    if (diffMins < 60) return `${diffMins} min ago`;
+    if (diffMins < 1) return 'только что';
+    if (diffMins < 60) return `${diffMins} мин. назад`;
     const diffHours = Math.floor(diffMins / 60);
-    if (diffHours < 24) return `${diffHours} hr ago`;
-    return `${Math.floor(diffHours / 24)} days ago`;
+    if (diffHours < 24) return `${diffHours} ч. назад`;
+    const diffDays = Math.floor(diffHours / 24);
+    return `${diffDays} дн. назад`;
   };
 
   if (loading) {
@@ -179,7 +401,7 @@ export default function PortfolioScreen() {
       <View style={[styles.loadingContainer, { backgroundColor: 'transparent' }]}>
         <ActivityIndicator size="large" color={theme.colors.accent} />
         <Text style={[styles.loadingText, { color: theme.colors.textSecondary }]}>
-          Loading portfolio...
+          Загрузка портфеля...
         </Text>
       </View>
     );
@@ -196,7 +418,7 @@ export default function PortfolioScreen() {
           onPress={fetchPortfolio}
         >
           <Text style={[styles.retryButtonText, { color: theme.colors.buttonText }]}>
-            Retry
+            Повторить
           </Text>
         </TouchableOpacity>
       </View>
@@ -218,10 +440,10 @@ export default function PortfolioScreen() {
       {/* Header */}
       <View style={styles.header}>
         <Text style={[styles.title, { color: theme.colors.textPrimary }]}>
-          Portfolio
+          Портфель
         </Text>
         <Text style={[styles.subtitle, { color: theme.colors.textMuted }]}>
-          Portfolio Overview
+          Обзор портфеля
         </Text>
       </View>
 
@@ -229,7 +451,7 @@ export default function PortfolioScreen() {
       {isStaleData && (
         <View style={[styles.staleBanner, { backgroundColor: theme.colors.warning }]}>
           <Text style={[styles.staleBannerText, { color: '#000' }]}>
-            Showing cached data from {formatCacheTime(cachedAt)}
+            Кэшированные данные ({formatCacheTime(cachedAt)})
           </Text>
         </View>
       )}
@@ -237,7 +459,7 @@ export default function PortfolioScreen() {
       {/* Total Balance Card */}
       <View style={[styles.balanceCard, { backgroundColor: theme.colors.card, borderColor: theme.colors.cardBorder }]}>
         <Text style={[styles.balanceLabel, { color: theme.colors.textMuted }]}>
-          Total Balance
+          Общий баланс
         </Text>
         <Text style={[styles.balanceValue, { color: theme.colors.textPrimary }]}>
           {formatCurrency(totalValue)}
@@ -274,7 +496,7 @@ export default function PortfolioScreen() {
         <>
           <View style={styles.sectionHeader}>
             <Text style={[styles.sectionTitle, { color: theme.colors.textPrimary }]}>
-              Performance
+              Доходность
             </Text>
           </View>
           <PnLChart data={pnlHistory} currentValue={totalValue} />
@@ -286,7 +508,7 @@ export default function PortfolioScreen() {
         <>
           <View style={styles.sectionHeader}>
             <Text style={[styles.sectionTitle, { color: theme.colors.textPrimary }]}>
-              Asset Allocation
+              Распределение активов
             </Text>
           </View>
           <AssetAllocation assets={assetAllocation} totalValue={totalValue} />
@@ -297,12 +519,12 @@ export default function PortfolioScreen() {
       {positions.length > 0 && (
         <View style={[styles.pnlSummaryCard, { backgroundColor: theme.colors.card, borderColor: theme.colors.cardBorder }]}>
           <Text style={[styles.pnlSummaryTitle, { color: theme.colors.textPrimary }]}>
-            P&L Summary
+            Сводка P&L
           </Text>
           <View style={styles.pnlSummaryRow}>
             <View style={styles.pnlSummaryItem}>
               <Text style={[styles.pnlSummaryLabel, { color: theme.colors.textMuted }]}>
-                Total Invested
+                Всего вложено
               </Text>
               <Text style={[styles.pnlSummaryValue, { color: theme.colors.textPrimary }]}>
                 {formatCurrency(totalValue - totalPnL)}
@@ -310,7 +532,7 @@ export default function PortfolioScreen() {
             </View>
             <View style={styles.pnlSummaryItem}>
               <Text style={[styles.pnlSummaryLabel, { color: theme.colors.textMuted }]}>
-                Unrealized P&L
+                Нереализованный P&L
               </Text>
               <Text
                 style={[
@@ -325,7 +547,7 @@ export default function PortfolioScreen() {
           <View style={styles.pnlSummaryRow}>
             <View style={styles.pnlSummaryItem}>
               <Text style={[styles.pnlSummaryLabel, { color: theme.colors.textMuted }]}>
-                Profitable Positions
+                Прибыльных позиций
               </Text>
               <Text style={[styles.pnlSummaryValue, { color: theme.colors.changeUpText }]}>
                 {positions.filter(p => p.profitLoss >= 0).length} / {positions.length}
@@ -356,10 +578,11 @@ export default function PortfolioScreen() {
             { backgroundColor: isOffline ? theme.colors.accentMuted : theme.colors.accent }
           ]}
           activeOpacity={0.8}
-          onPress={handleAddPosition}
+          onPress={openAddModal}
         >
+          <Ionicons name="add" size={18} color={theme.colors.buttonText} style={{ marginRight: 4 }} />
           <Text style={[styles.actionButtonText, { color: theme.colors.buttonText }]}>
-            + Add Position
+            Добавить
           </Text>
         </TouchableOpacity>
         <TouchableOpacity
@@ -372,8 +595,9 @@ export default function PortfolioScreen() {
           onPress={handleSyncExchanges}
           disabled={isOffline}
         >
+          <Ionicons name="sync" size={18} color={theme.colors.textSecondary} style={{ marginRight: 4 }} />
           <Text style={[styles.actionButtonText, { color: theme.colors.textSecondary }]}>
-            Sync Exchanges
+            Синхронизация
           </Text>
         </TouchableOpacity>
       </View>
@@ -383,10 +607,10 @@ export default function PortfolioScreen() {
         <>
           <View style={styles.sectionHeader}>
             <Text style={[styles.sectionTitle, { color: theme.colors.textPrimary }]}>
-              Positions
+              Позиции
             </Text>
             <Text style={[styles.sectionCount, { color: theme.colors.textMuted }]}>
-              {positions.length} assets
+              {positions.length} активов
             </Text>
           </View>
 
@@ -395,7 +619,31 @@ export default function PortfolioScreen() {
               key={position.id}
               position={position}
               onPress={(pos) => {
-                console.log('Position pressed:', pos.symbol);
+                const isProfitable = pos.profitLoss >= 0;
+                Alert.alert(
+                  `${pos.symbol}`,
+                  `Количество: ${pos.quantity.toLocaleString()}\n` +
+                  `Цена входа: $${pos.entryPrice.toFixed(2)}\n` +
+                  `Текущая цена: $${pos.currentPrice.toFixed(2)}\n` +
+                  `Стоимость: $${pos.value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}\n` +
+                  `P/L: ${isProfitable ? '+' : ''}$${pos.profitLoss.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} (${isProfitable ? '+' : ''}${pos.profitLossPercent.toFixed(2)}%)`,
+                  [
+                    { text: 'Закрыть', style: 'cancel' },
+                    {
+                      text: 'График',
+                      onPress: () => handleViewChart(pos),
+                    },
+                    {
+                      text: 'Изменить',
+                      onPress: () => openEditModal(pos),
+                    },
+                    {
+                      text: 'Удалить',
+                      style: 'destructive',
+                      onPress: () => handleDeletePosition(pos),
+                    },
+                  ]
+                );
               }}
             />
           ))}
@@ -405,11 +653,243 @@ export default function PortfolioScreen() {
       {/* Empty State */}
       {positions.length === 0 && (
         <View style={styles.emptyContainer}>
-          <Text style={[styles.emptyText, { color: theme.colors.textSecondary }]}>
-            No positions yet. Add your first position to start tracking your portfolio.
+          <Ionicons name="wallet-outline" size={48} color={theme.colors.textMuted} style={{ marginBottom: 16 }} />
+          <Text style={[styles.emptyTitle, { color: theme.colors.textPrimary }]}>
+            Портфель пуст
           </Text>
+          <Text style={[styles.emptyText, { color: theme.colors.textSecondary }]}>
+            Добавьте вашу первую позицию, чтобы начать отслеживать портфель.
+          </Text>
+          <TouchableOpacity
+            style={[styles.emptyButton, { backgroundColor: theme.colors.accent }]}
+            onPress={openAddModal}
+          >
+            <Text style={[styles.emptyButtonText, { color: theme.colors.buttonText }]}>
+              Добавить позицию
+            </Text>
+          </TouchableOpacity>
         </View>
       )}
+
+      {/* Add/Edit Position Modal */}
+      <Modal
+        visible={modalVisible}
+        animationType="slide"
+        presentationStyle="pageSheet"
+        onRequestClose={closeModal}
+      >
+        <KeyboardAvoidingView
+          style={[styles.modalContainer, { backgroundColor: theme.colors.appBackground }]}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        >
+          {/* Modal Header */}
+          <View style={[styles.modalHeader, { borderBottomColor: theme.colors.divider }]}>
+            <TouchableOpacity onPress={closeModal} style={styles.modalCloseButton}>
+              <Text style={[styles.modalCloseText, { color: theme.colors.accent }]}>Отмена</Text>
+            </TouchableOpacity>
+            <Text style={[styles.modalTitle, { color: theme.colors.textPrimary }]}>
+              {editingPosition ? 'Редактировать' : 'Добавить позицию'}
+            </Text>
+            <TouchableOpacity
+              onPress={handleSubmitPosition}
+              style={styles.modalSaveButton}
+              disabled={formSubmitting}
+            >
+              {formSubmitting ? (
+                <ActivityIndicator size="small" color={theme.colors.accent} />
+              ) : (
+                <Text style={[styles.modalSaveText, { color: theme.colors.accent }]}>
+                  {editingPosition ? 'Сохранить' : 'Добавить'}
+                </Text>
+              )}
+            </TouchableOpacity>
+          </View>
+
+          {/* Form */}
+          <ScrollView style={styles.modalContent} keyboardShouldPersistTaps="handled">
+            <View style={styles.formGroup}>
+              <Text style={[styles.formLabel, { color: theme.colors.textSecondary }]}>
+                Монета
+              </Text>
+              <TouchableOpacity
+                style={[
+                  styles.formInput,
+                  styles.coinSelector,
+                  {
+                    backgroundColor: theme.colors.input,
+                    borderColor: theme.colors.cardBorder,
+                  },
+                ]}
+                onPress={openCoinPicker}
+                disabled={!!editingPosition}
+              >
+                {formSymbol ? (
+                  <View style={styles.selectedCoin}>
+                    <Text style={[styles.selectedCoinSymbol, { color: theme.colors.textPrimary }]}>
+                      {formSymbol}
+                    </Text>
+                    {selectedCoinPrice !== null && selectedCoinPrice > 0 && (
+                      <Text style={[styles.selectedCoinPrice, { color: theme.colors.textMuted }]}>
+                        ${selectedCoinPrice.toLocaleString(undefined, { maximumFractionDigits: 2 })}
+                      </Text>
+                    )}
+                  </View>
+                ) : (
+                  <Text style={[styles.coinPlaceholder, { color: theme.colors.textMuted }]}>
+                    Выберите монету...
+                  </Text>
+                )}
+                {!editingPosition && (
+                  <Ionicons name="chevron-down" size={20} color={theme.colors.textMuted} />
+                )}
+              </TouchableOpacity>
+              {editingPosition && (
+                <Text style={[styles.formHint, { color: theme.colors.textMuted }]}>
+                  Монету нельзя изменить при редактировании
+                </Text>
+              )}
+            </View>
+
+            <View style={styles.formGroup}>
+              <Text style={[styles.formLabel, { color: theme.colors.textSecondary }]}>
+                Количество
+              </Text>
+              <TextInput
+                style={[
+                  styles.formInput,
+                  {
+                    backgroundColor: theme.colors.input,
+                    color: theme.colors.textPrimary,
+                    borderColor: theme.colors.cardBorder,
+                  },
+                ]}
+                value={formQuantity}
+                onChangeText={setFormQuantity}
+                placeholder="0.00"
+                placeholderTextColor={theme.colors.textMuted}
+                keyboardType="decimal-pad"
+              />
+            </View>
+
+            <View style={styles.formGroup}>
+              <Text style={[styles.formLabel, { color: theme.colors.textSecondary }]}>
+                Средняя цена входа ($)
+              </Text>
+              <TextInput
+                style={[
+                  styles.formInput,
+                  {
+                    backgroundColor: theme.colors.input,
+                    color: theme.colors.textPrimary,
+                    borderColor: theme.colors.cardBorder,
+                  },
+                ]}
+                value={formEntryPrice}
+                onChangeText={setFormEntryPrice}
+                placeholder="0.00"
+                placeholderTextColor={theme.colors.textMuted}
+                keyboardType="decimal-pad"
+              />
+            </View>
+
+            <View style={[styles.formInfo, { backgroundColor: theme.colors.card, borderColor: theme.colors.cardBorder }]}>
+              <Ionicons name="information-circle" size={20} color={theme.colors.accent} />
+              <Text style={[styles.formInfoText, { color: theme.colors.textSecondary }]}>
+                Текущая цена будет получена автоматически с бирж для расчета P/L.
+              </Text>
+            </View>
+          </ScrollView>
+        </KeyboardAvoidingView>
+      </Modal>
+
+      {/* Coin Picker Modal */}
+      <Modal
+        visible={coinPickerVisible}
+        animationType="slide"
+        presentationStyle="pageSheet"
+        onRequestClose={() => setCoinPickerVisible(false)}
+      >
+        <View style={[styles.modalContainer, { backgroundColor: theme.colors.appBackground }]}>
+          {/* Picker Header */}
+          <View style={[styles.modalHeader, { borderBottomColor: theme.colors.divider }]}>
+            <TouchableOpacity
+              onPress={() => setCoinPickerVisible(false)}
+              style={styles.modalCloseButton}
+            >
+              <Text style={[styles.modalCloseText, { color: theme.colors.accent }]}>Отмена</Text>
+            </TouchableOpacity>
+            <Text style={[styles.modalTitle, { color: theme.colors.textPrimary }]}>
+              Выберите монету
+            </Text>
+            <View style={styles.modalSaveButton} />
+          </View>
+
+          {/* Search Input */}
+          <View style={[styles.searchContainer, { backgroundColor: theme.colors.card }]}>
+            <Ionicons name="search" size={20} color={theme.colors.textMuted} />
+            <TextInput
+              style={[styles.searchInput, { color: theme.colors.textPrimary }]}
+              value={coinSearch}
+              onChangeText={setCoinSearch}
+              placeholder="Поиск монеты..."
+              placeholderTextColor={theme.colors.textMuted}
+              autoCapitalize="characters"
+              autoCorrect={false}
+              autoFocus
+            />
+            {coinSearch.length > 0 && (
+              <TouchableOpacity onPress={() => setCoinSearch('')}>
+                <Ionicons name="close-circle" size={20} color={theme.colors.textMuted} />
+              </TouchableOpacity>
+            )}
+          </View>
+
+          {/* Coins List */}
+          {coinsLoading ? (
+            <View style={styles.coinsLoading}>
+              <ActivityIndicator size="large" color={theme.colors.accent} />
+              <Text style={[styles.coinsLoadingText, { color: theme.colors.textSecondary }]}>
+                Загрузка монет...
+              </Text>
+            </View>
+          ) : filteredCoins.length === 0 ? (
+            <View style={styles.noCoinsContainer}>
+              <Text style={[styles.noCoinsText, { color: theme.colors.textMuted }]}>
+                {coinSearch ? 'Монета не найдена' : 'Нет доступных монет'}
+              </Text>
+            </View>
+          ) : (
+            <FlatList
+              data={filteredCoins}
+              keyExtractor={(item) => item.symbol}
+              keyboardShouldPersistTaps="handled"
+              renderItem={({ item: coin }) => (
+                <TouchableOpacity
+                  style={[
+                    styles.coinItem,
+                    { borderBottomColor: theme.colors.divider }
+                  ]}
+                  onPress={() => selectCoin(coin)}
+                >
+                  <View style={styles.coinItemLeft}>
+                    <Text style={[styles.coinItemSymbol, { color: theme.colors.textPrimary }]}>
+                      {coin.symbol}
+                    </Text>
+                    <Text style={[styles.coinItemName, { color: theme.colors.textMuted }]}>
+                      {coin.name}
+                    </Text>
+                  </View>
+                  {coin.price > 0 && (
+                    <Text style={[styles.coinItemPrice, { color: theme.colors.textSecondary }]}>
+                      ${coin.price.toLocaleString(undefined, { maximumFractionDigits: 6 })}
+                    </Text>
+                  )}
+                </TouchableOpacity>
+              )}
+            />
+          )}
+        </View>
+      </Modal>
     </ScrollView>
   );
 }
@@ -507,9 +987,11 @@ const styles = StyleSheet.create({
   },
   actionButton: {
     flex: 1,
+    flexDirection: 'row',
     paddingVertical: 14,
     borderRadius: 12,
     alignItems: 'center',
+    justifyContent: 'center',
   },
   syncButton: {
     // Additional styles for sync button if needed
@@ -552,10 +1034,168 @@ const styles = StyleSheet.create({
     padding: 32,
     alignItems: 'center',
   },
+  emptyTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginBottom: 8,
+  },
   emptyText: {
     fontSize: 14,
     textAlign: 'center',
     lineHeight: 20,
+    marginBottom: 20,
+  },
+  emptyButton: {
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 12,
+  },
+  emptyButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  // Modal styles
+  modalContainer: {
+    flex: 1,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+  },
+  modalCloseButton: {
+    minWidth: 70,
+  },
+  modalCloseText: {
+    fontSize: 16,
+  },
+  modalTitle: {
+    fontSize: 17,
+    fontWeight: '600',
+  },
+  modalSaveButton: {
+    minWidth: 70,
+    alignItems: 'flex-end',
+  },
+  modalSaveText: {
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  modalContent: {
+    flex: 1,
+    padding: 20,
+  },
+  formGroup: {
+    marginBottom: 20,
+  },
+  formLabel: {
+    fontSize: 14,
+    marginBottom: 8,
+    fontWeight: '500',
+  },
+  formInput: {
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    fontSize: 16,
+  },
+  formHint: {
+    fontSize: 12,
+    marginTop: 6,
+  },
+  formInfo: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    padding: 16,
+    borderRadius: 12,
+    borderWidth: 1,
+    gap: 12,
+    marginTop: 8,
+  },
+  formInfoText: {
+    flex: 1,
+    fontSize: 13,
+    lineHeight: 18,
+  },
+  // Coin selector styles
+  coinSelector: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  selectedCoin: {
+    flex: 1,
+  },
+  selectedCoinSymbol: {
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  selectedCoinPrice: {
+    fontSize: 13,
+    marginTop: 2,
+  },
+  coinPlaceholder: {
+    fontSize: 16,
+  },
+  // Coin picker modal styles
+  searchContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    margin: 16,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: 12,
+    gap: 8,
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: 16,
+    paddingVertical: 0,
+  },
+  coinsLoading: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  coinsLoadingText: {
+    marginTop: 12,
+    fontSize: 14,
+  },
+  coinsList: {
+    flex: 1,
+  },
+  noCoinsContainer: {
+    padding: 32,
+    alignItems: 'center',
+  },
+  noCoinsText: {
+    fontSize: 14,
+  },
+  coinItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    borderBottomWidth: 1,
+  },
+  coinItemLeft: {
+    flex: 1,
+  },
+  coinItemSymbol: {
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  coinItemName: {
+    fontSize: 12,
+    marginTop: 2,
+  },
+  coinItemPrice: {
+    fontSize: 14,
   },
   staleBanner: {
     paddingVertical: 8,

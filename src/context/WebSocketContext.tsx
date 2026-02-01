@@ -12,6 +12,8 @@ import React, {
   useMemo,
   useRef,
 } from 'react';
+
+declare const __DEV__: boolean;
 import {
   wsManager,
   ConnectionStatus,
@@ -197,25 +199,36 @@ export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({
 
     const handleSubscribed = (message: WebSocketMessage) => {
       setSubscriptions(wsManager.getSubscriptions());
-      console.log(`[WS Context] Subscribed to: ${message.channel}`);
+      if (__DEV__) {
+        console.log(`[WS Context] Subscribed to: ${message.channel}`);
+      }
     };
 
     const handleUnsubscribed = (message: WebSocketMessage) => {
       setSubscriptions(wsManager.getSubscriptions());
-      console.log(`[WS Context] Unsubscribed from: ${message.channel}`);
+      if (__DEV__) {
+        console.log(`[WS Context] Unsubscribed from: ${message.channel}`);
+      }
     };
 
     const handleError = (message: WebSocketMessage) => {
       // Ignore non-critical "already subscribed" errors
       if (message.message?.includes('Already subscribed')) {
-        console.log('[WS Context] Already subscribed, ignoring:', message.message);
+        if (__DEV__) {
+          console.log('[WS Context] Already subscribed, ignoring:', message.message);
+        }
         return;
       }
-      console.error('[WS Context] Server error:', message.message);
+      // Always log errors, but only in dev for verbose output
+      if (__DEV__) {
+        console.error('[WS Context] Server error:', message.message);
+      }
     };
 
-    const handleConnected = (message: WebSocketMessage) => {
-      console.log('[WS Context] Connection confirmed by server');
+    const handleConnected = (_message: WebSocketMessage) => {
+      if (__DEV__) {
+        console.log('[WS Context] Connection confirmed by server');
+      }
     };
 
     // Register handlers

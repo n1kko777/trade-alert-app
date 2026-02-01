@@ -1,7 +1,15 @@
 import { NewsArticle, NewsCategory } from './types';
 
-// Demo news articles for testing
-// Real API integration (CoinDesk, CoinTelegraph) can be added later
+// CryptoPanic API configuration (free tier)
+const CRYPTO_NEWS_API_URL = 'https://cryptopanic.com/api/v1/posts/';
+const CRYPTO_NEWS_API_KEY = ''; // Add your API key here for production
+
+// Cache for fetched news
+let cachedNews: NewsArticle[] | null = null;
+let lastFetchTime: number = 0;
+const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
+
+// Demo news articles as fallback
 const demoArticles: NewsArticle[] = [
   {
     id: '1',
@@ -114,26 +122,140 @@ const demoArticles: NewsArticle[] = [
 ];
 
 /**
- * Get all demo news articles
+ * Map category from API to local categories
+ */
+function mapCategory(apiCategory?: string): NewsCategory {
+  if (!apiCategory) return 'all';
+
+  const categoryMap: Record<string, NewsCategory> = {
+    'bitcoin': 'bitcoin',
+    'btc': 'bitcoin',
+    'ethereum': 'ethereum',
+    'eth': 'ethereum',
+    'defi': 'defi',
+    'nft': 'nft',
+    'regulation': 'regulation',
+    'government': 'regulation',
+    'law': 'regulation',
+  };
+
+  const lowerCategory = apiCategory.toLowerCase();
+  return categoryMap[lowerCategory] || 'altcoins';
+}
+
+/**
+ * Fetch news from external API
+ */
+export async function fetchNewsFromAPI(): Promise<NewsArticle[]> {
+  // Return cached news if still valid
+  if (cachedNews && Date.now() - lastFetchTime < CACHE_DURATION) {
+    return cachedNews;
+  }
+
+  // If no API key, use demo data
+  if (!CRYPTO_NEWS_API_KEY) {
+    return demoArticles;
+  }
+
+  try {
+    const response = await fetch(
+      `${CRYPTO_NEWS_API_URL}?auth_token=${CRYPTO_NEWS_API_KEY}&filter=hot&public=true`,
+      {
+        method: 'GET',
+        headers: {
+          'Accept': 'application/json',
+        },
+      }
+    );
+
+    if (!response.ok) {
+      throw new Error(`API error: ${response.status}`);
+    }
+
+    const data = await response.json();
+
+    if (!data.results || !Array.isArray(data.results)) {
+      throw new Error('Invalid API response');
+    }
+
+    const articles: NewsArticle[] = data.results.map((item: {
+      id: number;
+      title: string;
+      url: string;
+      published_at: string;
+      source: { title: string };
+      currencies?: Array<{ code: string }>;
+    }, index: number) => ({
+      id: `api_${item.id || index}`,
+      title: item.title,
+      summary: item.title, // API doesn't provide summary
+      source: item.source?.title || 'CryptoPanic',
+      url: item.url,
+      publishedAt: new Date(item.published_at).getTime(),
+      category: mapCategory(item.currencies?.[0]?.code),
+    }));
+
+    // Update cache
+    cachedNews = articles;
+    lastFetchTime = Date.now();
+
+    return articles;
+  } catch (error) {
+    console.warn('Failed to fetch news from API, using demo data:', error);
+    return demoArticles;
+  }
+}
+
+/**
+ * Get all news articles (async with API fallback)
+ */
+export async function fetchAllNews(): Promise<NewsArticle[]> {
+  const news = await fetchNewsFromAPI();
+  return [...news].sort((a, b) => b.publishedAt - a.publishedAt);
+}
+
+/**
+ * Get all demo news articles (synchronous fallback)
  */
 export function getAllNews(): NewsArticle[] {
+  if (cachedNews && cachedNews.length > 0) {
+    return [...cachedNews].sort((a, b) => b.publishedAt - a.publishedAt);
+  }
   return [...demoArticles].sort((a, b) => b.publishedAt - a.publishedAt);
 }
 
 /**
- * Filter news by category
+ * Filter news by category (async with API)
  */
-export function getNewsByCategory(category: NewsCategory): NewsArticle[] {
+export async function fetchNewsByCategory(category: NewsCategory): Promise<NewsArticle[]> {
+  const allNews = await fetchAllNews();
   if (category === 'all') {
-    return getAllNews();
+    return allNews;
   }
-  return demoArticles
-    .filter((article) => article.category === category)
-    .sort((a, b) => b.publishedAt - a.publishedAt);
+  return allNews.filter((article) => article.category === category);
 }
 
 /**
- * Get latest N news articles
+ * Filter news by category (synchronous fallback)
+ */
+export function getNewsByCategory(category: NewsCategory): NewsArticle[] {
+  const allNews = getAllNews();
+  if (category === 'all') {
+    return allNews;
+  }
+  return allNews.filter((article) => article.category === category);
+}
+
+/**
+ * Get latest N news articles (async with API)
+ */
+export async function fetchLatestNews(limit: number = 5): Promise<NewsArticle[]> {
+  const allNews = await fetchAllNews();
+  return allNews.slice(0, limit);
+}
+
+/**
+ * Get latest N news articles (synchronous fallback)
  */
 export function getLatestNews(limit: number = 5): NewsArticle[] {
   return getAllNews().slice(0, limit);

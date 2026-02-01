@@ -81,7 +81,7 @@ export default function PositionCard({ position, onPress }: PositionCardProps) {
       <View style={styles.priceRow}>
         <View style={styles.priceItem}>
           <Text style={[styles.priceLabel, { color: theme.colors.textMuted }]}>
-            Current Price
+            Текущая цена
           </Text>
           <Text style={[styles.priceValue, { color: theme.colors.textPrimary }]}>
             ${formatPrice(position.currentPrice)}
@@ -89,7 +89,7 @@ export default function PositionCard({ position, onPress }: PositionCardProps) {
         </View>
         <View style={styles.priceItem}>
           <Text style={[styles.priceLabel, { color: theme.colors.textMuted }]}>
-            Entry Price
+            Цена входа
           </Text>
           <Text style={[styles.priceValue, { color: theme.colors.textSecondary }]}>
             ${formatPrice(position.entryPrice)}
@@ -101,7 +101,7 @@ export default function PositionCard({ position, onPress }: PositionCardProps) {
       <View style={styles.holdingsRow}>
         <View style={styles.holdingsItem}>
           <Text style={[styles.holdingsLabel, { color: theme.colors.textMuted }]}>
-            Holdings
+            Количество
           </Text>
           <Text style={[styles.holdingsValue, { color: theme.colors.textPrimary }]}>
             {formatQuantity(position.quantity)} {position.symbol}
@@ -109,7 +109,7 @@ export default function PositionCard({ position, onPress }: PositionCardProps) {
         </View>
         <View style={styles.holdingsItem}>
           <Text style={[styles.holdingsLabel, { color: theme.colors.textMuted }]}>
-            Value
+            Стоимость
           </Text>
           <Text style={[styles.holdingsValue, { color: theme.colors.textPrimary }]}>
             {formatValue(position.value)}
@@ -120,7 +120,7 @@ export default function PositionCard({ position, onPress }: PositionCardProps) {
       {/* PnL row */}
       <View style={[styles.pnlRow, { borderTopColor: theme.colors.divider }]}>
         <Text style={[styles.pnlLabel, { color: theme.colors.textMuted }]}>
-          Profit/Loss
+          Прибыль/Убыток
         </Text>
         <Text style={[styles.pnlValue, { color: profitColor }]}>
           {formatPnL(position.profitLoss)} ({formatPnLPercent(position.profitLossPercent)})

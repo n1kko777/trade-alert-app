@@ -77,20 +77,25 @@ export default function LiquidationScreen() {
     return calculateLiquidationSummary(liquidationData.levels);
   }, [liquidationData]);
 
-  const fetchLiquidationData = useCallback(async () => {
+  const fetchLiquidationData = useCallback(async (symbolOverride?: string) => {
     try {
       setError(null);
-      const fullSymbol = inputSymbol.toUpperCase().endsWith('USDT')
-        ? inputSymbol.toUpperCase()
-        : `${inputSymbol.toUpperCase()}USDT`;
+      const baseSymbol = symbolOverride || inputSymbol;
+      const fullSymbol = baseSymbol.toUpperCase().endsWith('USDT')
+        ? baseSymbol.toUpperCase()
+        : `${baseSymbol.toUpperCase()}USDT`;
       setSymbol(fullSymbol);
 
       // Fetch liquidation data from backend API
       const response = await apiClient.get<ApiLiquidationMap>(
-        `${ENDPOINTS.market.liquidations}/${fullSymbol}`
+        ENDPOINTS.market.liquidations(fullSymbol)
       );
 
       const apiData = response.data;
+
+      if (!apiData || !apiData.levels) {
+        throw new Error('Нет данных о ликвидациях');
+      }
 
       // Map API response to local format
       const levels: LiquidationLevel[] = apiData.levels.map(level => ({
@@ -128,14 +133,14 @@ export default function LiquidationScreen() {
 
       setLiquidationData(data);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load data');
+      setError(err instanceof Error ? err.message : 'Не удалось загрузить данные');
       setLiquidationData(null);
     }
   }, [inputSymbol, selectedExchange]);
 
-  const loadData = useCallback(async () => {
+  const loadData = useCallback(async (symbolOverride?: string) => {
     setLoading(true);
-    await fetchLiquidationData();
+    await fetchLiquidationData(symbolOverride);
     setLoading(false);
   }, [fetchLiquidationData]);
 
@@ -158,10 +163,7 @@ export default function LiquidationScreen() {
     const base = sym.replace('USDT', '');
     setInputSymbol(base);
     setSymbol(sym);
-    // Trigger load with new symbol
-    setTimeout(() => {
-      loadData();
-    }, 0);
+    loadData(sym);
   }, [loadData]);
 
   const renderHeader = () => (
@@ -224,7 +226,7 @@ export default function LiquidationScreen() {
           onPress={handleSymbolSubmit}
         >
           <Text style={[styles.searchButtonText, { color: theme.colors.buttonText }]}>
-            Search
+            Поиск
           </Text>
         </TouchableOpacity>
       </View>
@@ -265,7 +267,7 @@ export default function LiquidationScreen() {
         <View style={styles.summaryRow}>
           <View style={[styles.summaryCard, { backgroundColor: theme.colors.card }]}>
             <Text style={[styles.summaryLabel, { color: theme.colors.textMuted }]}>
-              Total at Risk
+              Всего под риском
             </Text>
             <Text style={[styles.summaryValue, { color: theme.colors.textPrimary }]}>
               {formatVolume(summary.totalVolumeAtRisk)}
@@ -273,7 +275,7 @@ export default function LiquidationScreen() {
           </View>
           <View style={[styles.summaryCard, { backgroundColor: theme.colors.card }]}>
             <Text style={[styles.summaryLabel, { color: theme.colors.success }]}>
-              Longs
+              Лонги
             </Text>
             <Text style={[styles.summaryValue, { color: theme.colors.changeUpText }]}>
               {formatVolume(summary.longVolumeAtRisk)}
@@ -281,7 +283,7 @@ export default function LiquidationScreen() {
           </View>
           <View style={[styles.summaryCard, { backgroundColor: theme.colors.card }]}>
             <Text style={[styles.summaryLabel, { color: theme.colors.danger }]}>
-              Shorts
+              Шорты
             </Text>
             <Text style={[styles.summaryValue, { color: theme.colors.changeDownText }]}>
               {formatVolume(summary.shortVolumeAtRisk)}
@@ -298,7 +300,7 @@ export default function LiquidationScreen() {
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={theme.colors.accent} />
           <Text style={[styles.loadingText, { color: theme.colors.textSecondary }]}>
-            Loading liquidation data...
+            Загрузка данных ликвидаций...
           </Text>
         </View>
       );
@@ -312,10 +314,10 @@ export default function LiquidationScreen() {
           </Text>
           <TouchableOpacity
             style={[styles.retryButton, { backgroundColor: theme.colors.accent }]}
-            onPress={loadData}
+            onPress={() => loadData()}
           >
             <Text style={[styles.retryButtonText, { color: theme.colors.buttonText }]}>
-              Retry
+              Повторить
             </Text>
           </TouchableOpacity>
         </View>
@@ -326,7 +328,7 @@ export default function LiquidationScreen() {
       return (
         <View style={styles.emptyContainer}>
           <Text style={[styles.emptyText, { color: theme.colors.textSecondary }]}>
-            Enter a symbol to view liquidation map
+            Введите символ для просмотра карты ликвидаций
           </Text>
         </View>
       );
@@ -345,12 +347,12 @@ export default function LiquidationScreen() {
   const renderDisclaimer = () => (
     <View style={[styles.disclaimerContainer, { backgroundColor: theme.colors.metricCard }]}>
       <Text style={[styles.disclaimerTitle, { color: theme.colors.textSecondary }]}>
-        About This Data
+        О данных
       </Text>
       <Text style={[styles.disclaimerText, { color: theme.colors.textMuted }]}>
-        These are estimated liquidation levels based on current price and common leverage
-        levels. Real liquidation data requires paid API access (Coinglass, etc.). Volumes
-        shown are estimates based on typical market distribution.
+        Это оценочные уровни ликвидации на основе текущей цены и типичных уровней плеча.
+        Реальные данные о ликвидациях требуют платного API (Coinglass и др.). Показанные
+        объёмы являются оценками на основе типичного распределения рынка.
       </Text>
     </View>
   );
@@ -363,7 +365,7 @@ export default function LiquidationScreen() {
         Карта ликвидаций
       </Text>
       <Text style={[styles.subtitle, { color: theme.colors.textSecondary }]}>
-        Estimated liquidation levels for leveraged positions
+        Оценочные уровни ликвидации для позиций с плечом
       </Text>
 
       <FlatList

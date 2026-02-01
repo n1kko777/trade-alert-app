@@ -53,9 +53,9 @@ export interface RateLimitCheck {
  * AI rate limits per hour by subscription tier
  */
 export const AI_RATE_LIMITS = {
-  pro: 10,
-  premium: 50,
-  vip: 100,
+  pro: 50,
+  premium: 100,
+  vip: 200,
 } as const;
 
 /**
@@ -85,6 +85,15 @@ const RATE_LIMIT_KEY_PREFIX = 'ai:ratelimit:';
 let openaiClient: OpenAI | null = null;
 
 /**
+ * Check if AI service is available (API key is configured)
+ * Use this for graceful degradation when AI is optional
+ */
+export function isAIAvailable(): boolean {
+  const config = getConfig();
+  return Boolean(config.OPENAI_API_KEY);
+}
+
+/**
  * Get or create OpenAI client instance
  */
 function getOpenAIClient(): OpenAI {
@@ -95,7 +104,11 @@ function getOpenAIClient(): OpenAI {
   const config = getConfig();
 
   if (!config.OPENAI_API_KEY) {
-    throw new AppError('OpenAI API key not configured', 500, 'AI_NOT_CONFIGURED');
+    throw new AppError(
+      'AI analysis is not available. Please contact support if this issue persists.',
+      503,
+      'AI_NOT_CONFIGURED'
+    );
   }
 
   openaiClient = new OpenAI({
@@ -103,6 +116,87 @@ function getOpenAIClient(): OpenAI {
   });
 
   return openaiClient;
+}
+
+/**
+ * Parse OpenAI error and return appropriate AppError
+ */
+function handleOpenAIError(error: unknown, context: string): never {
+  const logger = getLogger();
+
+  // Check for OpenAI-specific errors
+  if (error instanceof OpenAI.APIError) {
+    const status = error.status;
+    const message = error.message;
+
+    logger.error({ status, message, context }, 'OpenAI API error');
+
+    // Rate limit from OpenAI (different from our app rate limit)
+    if (status === 429) {
+      throw new AppError(
+        'AI service is temporarily busy. Please try again in a few moments.',
+        429,
+        'AI_PROVIDER_RATE_LIMIT'
+      );
+    }
+
+    // Invalid API key
+    if (status === 401) {
+      throw new AppError(
+        'AI service configuration error. Please contact support.',
+        503,
+        'AI_AUTH_ERROR'
+      );
+    }
+
+    // Insufficient quota
+    if (status === 402 || message.includes('quota')) {
+      throw new AppError(
+        'AI service quota exceeded. Please try again later.',
+        503,
+        'AI_QUOTA_EXCEEDED'
+      );
+    }
+
+    // Server errors
+    if (status && status >= 500) {
+      throw new AppError(
+        'AI service is temporarily unavailable. Please try again later.',
+        503,
+        'AI_PROVIDER_ERROR'
+      );
+    }
+  }
+
+  // Network errors
+  if (error instanceof Error && error.message.includes('ECONNREFUSED')) {
+    throw new AppError(
+      'Unable to connect to AI service. Please try again later.',
+      503,
+      'AI_NETWORK_ERROR'
+    );
+  }
+
+  // Timeout errors
+  if (error instanceof Error && (error.message.includes('timeout') || error.message.includes('ETIMEDOUT'))) {
+    throw new AppError(
+      'AI service timed out. Please try again.',
+      504,
+      'AI_TIMEOUT'
+    );
+  }
+
+  // Generic fallback
+  logger.error(
+    { error: error instanceof Error ? error.message : String(error), context },
+    'Unknown AI error'
+  );
+
+  throw new AppError(
+    'AI analysis failed. Please try again later.',
+    500,
+    'AI_ERROR'
+  );
 }
 
 // =============================================================================
@@ -254,16 +348,11 @@ export async function analyzeSymbol(
       },
     };
   } catch (error) {
-    if (error instanceof RateLimitError) {
+    if (error instanceof RateLimitError || error instanceof AppError) {
       throw error;
     }
 
-    logger.error(
-      { error: error instanceof Error ? error.message : String(error), symbol, userId },
-      'AI analysis failed'
-    );
-
-    throw new AppError('AI analysis failed. Please try again later.', 500, 'AI_ERROR');
+    handleOpenAIError(error, `analysis for ${symbol}`);
   }
 }
 
@@ -345,16 +434,11 @@ export async function chat(
       },
     };
   } catch (error) {
-    if (error instanceof RateLimitError) {
+    if (error instanceof RateLimitError || error instanceof AppError) {
       throw error;
     }
 
-    logger.error(
-      { error: error instanceof Error ? error.message : String(error), userId },
-      'AI chat failed'
-    );
-
-    throw new AppError('AI chat failed. Please try again later.', 500, 'AI_ERROR');
+    handleOpenAIError(error, 'chat');
   }
 }
 

@@ -63,20 +63,20 @@ export default function StatusPanel({
   const lastSyncShort = lastSyncLabel.replace('Last sync ', '');
   const notificationText = settings.notificationsEnabled
     ? settings.notificationSound
-      ? 'Notify'
-      : 'Silent'
-    : 'Notify off';
+      ? 'Уведомл.'
+      : 'Тихо'
+    : 'Уведомл. выкл';
   const streamText = settings.trackAllSymbols
-    ? 'All coins'
+    ? 'Все монеты'
     : settings.useWebSocket
     ? streamTone === 'bad'
-      ? 'Stream err'
+      ? 'Ошибка потока'
       : streamTone === 'warn'
-      ? 'Syncing'
-      : 'Stream'
-    : 'Polling';
-  const backgroundText = settings.backgroundEnabled ? 'BG on' : 'BG off';
-  const quietText = settings.quietHoursEnabled ? 'Quiet on' : 'Quiet off';
+      ? 'Синхр.'
+      : 'Поток'
+    : 'Опрос';
+  const backgroundText = settings.backgroundEnabled ? 'Фон вкл' : 'Фон выкл';
+  const quietText = settings.quietHoursEnabled ? 'Тихо вкл' : 'Тихо выкл';
   const healthIcon =
     healthTone === 'good'
       ? 'checkmark-circle'
@@ -102,7 +102,7 @@ export default function StatusPanel({
     <View style={[styles.panel, compact ? styles.panelCompact : null]}>
       <View style={styles.panelHeader}>
         <View>
-          <Text style={styles.panelTitle}>Alert Engine</Text>
+          <Text style={styles.panelTitle}>Движок алертов</Text>
         </View>
         <Animated.View
           style={[
@@ -122,42 +122,42 @@ export default function StatusPanel({
       {compact ? (
         <View style={styles.summaryBlock}>
           <Text style={styles.summaryText}>
-            Alert{' '}
+            Алерт{' '}
             <Text style={styles.summaryStrong}>{settings.thresholdPct}%</Text> •{' '}
-            <Text style={styles.summaryStrong}>{settings.windowMinutes}m</Text> • CD{' '}
-            <Text style={styles.summaryStrong}>{settings.cooldownMinutes}m</Text>
+            <Text style={styles.summaryStrong}>{settings.windowMinutes}м</Text> • КД{' '}
+            <Text style={styles.summaryStrong}>{settings.cooldownMinutes}м</Text>
           </Text>
           <Text style={styles.summaryText}>
-            Retention <Text style={styles.summaryStrong}>{settings.retentionDays}d</Text> • Max{' '}
-            <Text style={styles.summaryStrong}>{settings.maxAlerts}</Text> • Poll{' '}
-            <Text style={styles.summaryStrong}>{settings.pollIntervalSec}s</Text>
+            Хранение <Text style={styles.summaryStrong}>{settings.retentionDays}д</Text> • Макс{' '}
+            <Text style={styles.summaryStrong}>{settings.maxAlerts}</Text> • Опрос{' '}
+            <Text style={styles.summaryStrong}>{settings.pollIntervalSec}с</Text>
           </Text>
         </View>
       ) : (
         <View style={styles.metricsRow}>
           <View style={styles.metricCard}>
-            <Text style={styles.metricLabel}>Threshold</Text>
+            <Text style={styles.metricLabel}>Порог</Text>
             <Text style={styles.metricValue}>{settings.thresholdPct}%</Text>
           </View>
           <View style={styles.metricCard}>
-            <Text style={styles.metricLabel}>Window</Text>
-            <Text style={styles.metricValue}>{settings.windowMinutes}m</Text>
+            <Text style={styles.metricLabel}>Окно</Text>
+            <Text style={styles.metricValue}>{settings.windowMinutes}м</Text>
           </View>
           <View style={styles.metricCard}>
-            <Text style={styles.metricLabel}>Cooldown</Text>
-            <Text style={styles.metricValue}>{settings.cooldownMinutes}m</Text>
+            <Text style={styles.metricLabel}>Кулдаун</Text>
+            <Text style={styles.metricValue}>{settings.cooldownMinutes}м</Text>
           </View>
           <View style={styles.metricCard}>
-            <Text style={styles.metricLabel}>Retention</Text>
-            <Text style={styles.metricValue}>{settings.retentionDays}d</Text>
+            <Text style={styles.metricLabel}>Хранение</Text>
+            <Text style={styles.metricValue}>{settings.retentionDays}д</Text>
           </View>
           <View style={styles.metricCard}>
-            <Text style={styles.metricLabel}>Max alerts</Text>
+            <Text style={styles.metricLabel}>Макс. алерт.</Text>
             <Text style={styles.metricValue}>{settings.maxAlerts}</Text>
           </View>
           <View style={styles.metricCard}>
-            <Text style={styles.metricLabel}>Polling</Text>
-            <Text style={styles.metricValue}>{settings.pollIntervalSec}s</Text>
+            <Text style={styles.metricLabel}>Опрос</Text>
+            <Text style={styles.metricValue}>{settings.pollIntervalSec}с</Text>
           </View>
         </View>
       )}
@@ -230,7 +230,7 @@ export default function StatusPanel({
               <Text style={styles.metaText}>{backgroundLabel}</Text>
             </View>
             <Text style={styles.metaText}>
-              History {settings.retentionDays}d • {settings.maxAlerts} max
+              История {settings.retentionDays}д • {settings.maxAlerts} макс.
             </Text>
           </View>
           <View style={styles.metaRow}>
@@ -238,7 +238,7 @@ export default function StatusPanel({
               <View style={[styles.statusDot, getToneStyle(quietTone)]} />
               <Text style={styles.metaText}>{quietLabel}</Text>
             </View>
-            <Text style={styles.metaText}>Source Bybit spot tickers • futures only</Text>
+            <Text style={styles.metaText}>Источник: Bybit спот тикеры • только фьючерсы</Text>
           </View>
         </>
       )}

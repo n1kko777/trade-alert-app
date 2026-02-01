@@ -91,10 +91,10 @@ export default function LiquidationChart({
         <View style={styles.section}>
           <View style={[styles.sectionHeader, { borderBottomColor: theme.colors.divider }]}>
             <Text style={[styles.sectionTitle, { color: theme.colors.danger }]}>
-              Short Liquidations
+              Ликвидации шортов
             </Text>
             <Text style={[styles.sectionSubtitle, { color: theme.colors.textMuted }]}>
-              (if price rises)
+              (если цена вырастет)
             </Text>
           </View>
           {shortLevels.map((level, i) => renderLevel(level, i))}
@@ -105,7 +105,7 @@ export default function LiquidationChart({
       <View style={[styles.currentPriceRow, { backgroundColor: theme.colors.metricCard }]}>
         <View style={styles.priceColumn}>
           <Text style={[styles.currentPriceLabel, { color: theme.colors.textMuted }]}>
-            Current
+            Текущая
           </Text>
         </View>
         <View style={styles.currentPriceCenter}>
@@ -125,10 +125,10 @@ export default function LiquidationChart({
         <View style={styles.section}>
           <View style={[styles.sectionHeader, { borderBottomColor: theme.colors.divider }]}>
             <Text style={[styles.sectionTitle, { color: theme.colors.success }]}>
-              Long Liquidations
+              Ликвидации лонгов
             </Text>
             <Text style={[styles.sectionSubtitle, { color: theme.colors.textMuted }]}>
-              (if price drops)
+              (если цена упадёт)
             </Text>
           </View>
           {longLevels.map((level, i) => renderLevel(level, i))}

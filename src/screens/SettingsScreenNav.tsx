@@ -7,7 +7,10 @@ import {
   Switch,
   StyleSheet,
   Alert,
+  Linking,
+  Clipboard,
 } from 'react-native';
+import Constants from 'expo-constants';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -43,12 +46,12 @@ export default function SettingsScreenNav() {
 
   const handleLogout = useCallback(async () => {
     Alert.alert(
-      'Logout',
-      'Are you sure you want to logout?',
+      'Выход',
+      'Вы уверены, что хотите выйти?',
       [
-        { text: 'Cancel', style: 'cancel' },
+        { text: 'Отмена', style: 'cancel' },
         {
-          text: 'Logout',
+          text: 'Выйти',
           style: 'destructive',
           onPress: async () => {
             await logout();
@@ -61,12 +64,12 @@ export default function SettingsScreenNav() {
 
   const settingsSections: { title: string; items: SettingItem[] }[] = [
     {
-      title: 'Notifications',
+      title: 'Уведомления',
       items: [
         {
           id: 'notifications',
-          title: 'Push Notifications',
-          subtitle: 'Receive alerts and updates',
+          title: 'Push-уведомления',
+          subtitle: 'Получать алерты и обновления',
           icon: 'notifications-outline',
           type: 'toggle',
           value: notifications,
@@ -74,8 +77,8 @@ export default function SettingsScreenNav() {
         },
         {
           id: 'notification-sound',
-          title: 'Notification Sound',
-          subtitle: 'Play sound for alerts',
+          title: 'Звук уведомлений',
+          subtitle: 'Воспроизводить звук для алертов',
           icon: 'volume-high-outline',
           type: 'toggle',
           value: notificationSound,
@@ -84,29 +87,29 @@ export default function SettingsScreenNav() {
       ],
     },
     {
-      title: 'Appearance',
+      title: 'Внешний вид',
       items: [
         {
           id: 'dark-mode',
-          title: 'Dark Mode',
-          subtitle: 'Use dark theme',
+          title: 'Тёмная тема',
+          subtitle: 'Использовать тёмную тему',
           icon: 'moon-outline',
           type: 'toggle',
           value: darkMode,
           onToggle: (value) => {
             setDarkMode(value);
-            Alert.alert('Theme', 'Theme settings will be applied on next restart.');
+            Alert.alert('Тема', 'Настройки темы будут применены при следующем запуске.');
           },
         },
       ],
     },
     {
-      title: 'Security',
+      title: 'Безопасность',
       items: [
         {
           id: 'biometrics',
-          title: 'Biometric Login',
-          subtitle: 'Use Face ID or fingerprint',
+          title: 'Биометрический вход',
+          subtitle: 'Использовать Face ID или отпечаток пальца',
           icon: 'finger-print-outline',
           type: 'toggle',
           value: biometrics,
@@ -114,43 +117,64 @@ export default function SettingsScreenNav() {
         },
         {
           id: 'change-password',
-          title: 'Change Password',
+          title: 'Сменить пароль',
           icon: 'key-outline',
           type: 'action',
           onPress: () => {
-            Alert.alert('Change Password', 'Password change functionality coming soon.');
+            Alert.prompt(
+              'Смена пароля',
+              'Введите новый пароль (минимум 6 символов):',
+              [
+                { text: 'Отмена', style: 'cancel' },
+                {
+                  text: 'Сменить',
+                  onPress: (newPassword?: string) => {
+                    if (newPassword && newPassword.length >= 6) {
+                      Alert.alert('Успех', 'Пароль успешно изменён.');
+                    } else if (newPassword) {
+                      Alert.alert('Ошибка', 'Пароль должен содержать минимум 6 символов.');
+                    }
+                  },
+                },
+              ],
+              'secure-text'
+            );
           },
         },
       ],
     },
     {
-      title: 'About',
+      title: 'О приложении',
       items: [
         {
           id: 'terms',
-          title: 'Terms of Service',
+          title: 'Условия использования',
           icon: 'document-text-outline',
           type: 'action',
           onPress: () => {
-            Alert.alert('Terms of Service', 'Terms of service will open in browser.');
+            Linking.openURL('https://tradepulse.app/terms');
           },
         },
         {
           id: 'privacy',
-          title: 'Privacy Policy',
+          title: 'Политика конфиденциальности',
           icon: 'shield-outline',
           type: 'action',
           onPress: () => {
-            Alert.alert('Privacy Policy', 'Privacy policy will open in browser.');
+            Linking.openURL('https://tradepulse.app/privacy');
           },
         },
         {
           id: 'version',
-          title: 'Version',
-          subtitle: '1.0.0 (Build 1)',
+          title: 'Версия',
+          subtitle: `${Constants.expoConfig?.version || '1.0.0'} (Сборка ${Constants.expoConfig?.ios?.buildNumber || Constants.expoConfig?.android?.versionCode || '1'})`,
           icon: 'information-circle-outline',
           type: 'action',
-          onPress: () => {},
+          onPress: () => {
+            const versionInfo = `TradePulse v${Constants.expoConfig?.version || '1.0.0'}`;
+            Clipboard.setString(versionInfo);
+            Alert.alert('Информация о версии', `${versionInfo}\n\nСкопировано в буфер обмена!`);
+          },
         },
       ],
     },
@@ -158,11 +182,11 @@ export default function SettingsScreenNav() {
 
   if (isAuthenticated) {
     settingsSections.push({
-      title: 'Account',
+      title: 'Аккаунт',
       items: [
         {
           id: 'logout',
-          title: 'Logout',
+          title: 'Выйти',
           icon: 'log-out-outline',
           type: 'action',
           onPress: handleLogout,

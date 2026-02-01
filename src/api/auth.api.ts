@@ -99,6 +99,52 @@ export async function getCurrentUser(): Promise<ApiUser> {
   return response.data.user;
 }
 
+/**
+ * Subscription tier type
+ */
+export type SubscriptionTier = 'free' | 'pro' | 'premium' | 'vip';
+
+/**
+ * Upgrade subscription response
+ */
+export interface UpgradeSubscriptionResponse {
+  success: boolean;
+  user: ApiUser;
+  message?: string;
+}
+
+/**
+ * Upgrade user subscription
+ * In production, this would integrate with a payment provider (Stripe, etc.)
+ */
+export async function upgradeSubscription(tier: SubscriptionTier): Promise<UpgradeSubscriptionResponse> {
+  const response = await apiClient.post<UpgradeSubscriptionResponse>(
+    ENDPOINTS.subscription.upgrade,
+    { tier }
+  );
+  return response.data;
+}
+
+/**
+ * Get current subscription status
+ */
+export async function getCurrentSubscription(): Promise<{ tier: SubscriptionTier; expiresAt?: string }> {
+  const response = await apiClient.get<{ tier: SubscriptionTier; expiresAt?: string }>(
+    ENDPOINTS.subscription.current
+  );
+  return response.data;
+}
+
+/**
+ * Cancel subscription
+ */
+export async function cancelSubscription(): Promise<{ success: boolean; message: string }> {
+  const response = await apiClient.post<{ success: boolean; message: string }>(
+    ENDPOINTS.subscription.cancel
+  );
+  return response.data;
+}
+
 // Export all functions as named exports
 export const authApi = {
   login,
@@ -109,6 +155,9 @@ export const authApi = {
   verify2FA,
   disable2FA,
   getCurrentUser,
+  upgradeSubscription,
+  getCurrentSubscription,
+  cancelSubscription,
 };
 
 export default authApi;

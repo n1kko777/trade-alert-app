@@ -30,7 +30,7 @@ const SignalRow = React.memo(function SignalRow({
         </Text>
       </View>
       <Text style={[styles.signalProfit, { color: changeUpColor }]}>
-        {signal.profit ? `+$${signal.profit.toFixed(2)}` : 'Pending'}
+        {signal.profit ? `+$${signal.profit.toFixed(2)}` : 'Ожидание'}
       </Text>
     </View>
   );
@@ -60,15 +60,15 @@ function ActiveSignals({ signals, isPro = false, onUpgrade }: ActiveSignalsProps
   if (!isPro) {
     return (
       <View style={[styles.container, { backgroundColor: theme.colors.card }]}>
-        <Text style={[styles.title, { color: theme.colors.textPrimary }]}>Trading Signals</Text>
+        <Text style={[styles.title, { color: theme.colors.textPrimary }]}>Торговые сигналы</Text>
         <Text style={[styles.proText, { color: theme.colors.textSecondary }]}>
-          Get AI-powered trading signals with Pro subscription
+          Получите AI-сигналы с Pro подпиской
         </Text>
         <TouchableOpacity
           style={[styles.upgradeButton, { backgroundColor: theme.colors.accent }]}
           onPress={onUpgrade}
         >
-          <Text style={styles.upgradeText}>Upgrade to Pro</Text>
+          <Text style={styles.upgradeText}>Оформить Pro</Text>
         </TouchableOpacity>
       </View>
     );
@@ -76,10 +76,10 @@ function ActiveSignals({ signals, isPro = false, onUpgrade }: ActiveSignalsProps
 
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.card }]}>
-      <Text style={[styles.title, { color: theme.colors.textPrimary }]}>My Signals (Pro)</Text>
+      <Text style={[styles.title, { color: theme.colors.textPrimary }]}>Мои сигналы (Pro)</Text>
       {signals.length === 0 ? (
         <Text style={[styles.emptyText, { color: theme.colors.textSecondary }]}>
-          No active signals. New signals coming soon.
+          Нет активных сигналов. Скоро появятся новые.
         </Text>
       ) : (
         <FlatList

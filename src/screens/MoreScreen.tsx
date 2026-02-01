@@ -30,34 +30,34 @@ interface MenuItem {
 
 const menuSections: { title: string; items: MenuItem[] }[] = [
   {
-    title: 'Analysis',
+    title: 'Аналитика',
     items: [
       {
         id: 'charts',
-        title: 'Charts',
-        subtitle: 'Advanced trading charts',
+        title: 'Графики',
+        subtitle: 'Продвинутые торговые графики',
         icon: 'trending-up',
         route: 'Charts',
       },
       {
         id: 'orderbook',
-        title: 'Order Book',
-        subtitle: 'Real-time depth analysis',
+        title: 'Стакан',
+        subtitle: 'Анализ глубины в реальном времени',
         icon: 'layers-outline',
         route: 'OrderBook',
       },
       {
         id: 'liquidations',
-        title: 'Liquidation Map',
-        subtitle: 'Track liquidation zones',
+        title: 'Карта ликвидаций',
+        subtitle: 'Отслеживание зон ликвидации',
         icon: 'flame-outline',
         route: 'LiquidationMap',
         isPro: true,
       },
       {
         id: 'ai',
-        title: 'AI Analysis',
-        subtitle: 'AI-powered insights',
+        title: 'AI Анализ',
+        subtitle: 'Инсайты на основе ИИ',
         icon: 'sparkles',
         route: 'AIChat',
         isPro: true,
@@ -65,57 +65,57 @@ const menuSections: { title: string; items: MenuItem[] }[] = [
     ],
   },
   {
-    title: 'Tools',
+    title: 'Инструменты',
     items: [
       {
         id: 'tools',
-        title: 'Trading Tools',
-        subtitle: 'Calculators & utilities',
+        title: 'Торговые инструменты',
+        subtitle: 'Калькуляторы и утилиты',
         icon: 'calculator-outline',
         route: 'Tools',
       },
     ],
   },
   {
-    title: 'Learn & Connect',
+    title: 'Обучение',
     items: [
       {
         id: 'education',
-        title: 'Education',
-        subtitle: 'Courses & tutorials',
+        title: 'Образование',
+        subtitle: 'Курсы и уроки',
         icon: 'school-outline',
         route: 'Education',
       },
       {
         id: 'community',
-        title: 'Community',
-        subtitle: 'Chat with traders',
+        title: 'Сообщество',
+        subtitle: 'Общение с трейдерами',
         icon: 'people-outline',
         route: 'Community',
       },
       {
         id: 'news',
-        title: 'News',
-        subtitle: 'Crypto news & updates',
+        title: 'Новости',
+        subtitle: 'Криптоновости и обновления',
         icon: 'newspaper-outline',
         route: 'News',
       },
     ],
   },
   {
-    title: 'Account',
+    title: 'Аккаунт',
     items: [
       {
         id: 'settings',
-        title: 'Settings',
-        subtitle: 'App preferences',
+        title: 'Настройки',
+        subtitle: 'Параметры приложения',
         icon: 'settings-outline',
         route: 'Settings',
       },
       {
         id: 'subscription',
-        title: 'Subscription',
-        subtitle: 'Manage your plan',
+        title: 'Подписка',
+        subtitle: 'Управление планом',
         icon: 'diamond-outline',
         route: 'Subscription',
       },
@@ -178,10 +178,10 @@ export default function MoreScreen() {
           </View>
           <View style={styles.userInfo}>
             <Text style={[styles.loginPrompt, { color: theme.colors.textPrimary }]}>
-              Login to your account
+              Войти в аккаунт
             </Text>
             <Text style={[styles.loginSubtext, { color: theme.colors.textSecondary }]}>
-              Access all features and sync your data
+              Доступ ко всем функциям и синхронизация данных
             </Text>
           </View>
           <Ionicons
@@ -292,7 +292,7 @@ export default function MoreScreen() {
       {/* Header */}
       <View style={styles.header}>
         <Text style={[styles.title, { color: theme.colors.textPrimary }]}>
-          More
+          Ещё
         </Text>
       </View>
 
@@ -336,7 +336,7 @@ export default function MoreScreen() {
       {/* Version Info */}
       <View style={styles.versionContainer}>
         <Text style={[styles.versionText, { color: theme.colors.textMuted }]}>
-          Version 1.0.0
+          Версия 1.0.0
         </Text>
       </View>
     </ScrollView>

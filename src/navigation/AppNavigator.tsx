@@ -13,6 +13,7 @@ import ChartScreen from '../screens/ChartScreen';
 import OrderBookScreen from '../screens/OrderBookScreen';
 import LiquidationScreen from '../screens/LiquidationScreen';
 import AIAnalysisScreen from '../screens/AIAnalysisScreen';
+import SignalDetailScreen from '../screens/SignalDetailScreen';
 import EducationScreen from '../screens/EducationScreen';
 import CourseDetailScreen from '../screens/CourseDetailScreen';
 import CommunityScreen from '../screens/CommunityScreen';
@@ -75,8 +76,13 @@ export default function AppNavigator() {
         name="ChartFullscreen"
         component={ChartScreen}
         options={{
-          animation: 'fade',
-          presentation: 'fullScreenModal',
+          headerShown: true,
+          headerTitle: 'График',
+          headerStyle: { backgroundColor: theme.colors.appBackground },
+          headerTintColor: theme.colors.textPrimary,
+          headerShadowVisible: false,
+          presentation: 'modal',
+          headerLeft: () => <CloseButton />,
         }}
       />
       <Stack.Screen
@@ -107,6 +113,17 @@ export default function AppNavigator() {
         options={{
           headerShown: true,
           headerTitle: 'AI Analysis',
+          headerStyle: { backgroundColor: theme.colors.appBackground },
+          headerTintColor: theme.colors.textPrimary,
+          headerShadowVisible: false,
+        }}
+      />
+      <Stack.Screen
+        name="SignalDetail"
+        component={SignalDetailScreen}
+        options={{
+          headerShown: true,
+          headerTitle: 'Signal Details',
           headerStyle: { backgroundColor: theme.colors.appBackground },
           headerTintColor: theme.colors.textPrimary,
           headerShadowVisible: false,

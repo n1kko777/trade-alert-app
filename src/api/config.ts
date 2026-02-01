@@ -48,6 +48,14 @@ export const ENDPOINTS = {
     revokeSession: (id: string) => `/user/sessions/${id}`,
   },
 
+  // Subscription
+  subscription: {
+    current: '/subscription',
+    upgrade: '/subscription/upgrade',
+    cancel: '/subscription/cancel',
+    history: '/subscription/history',
+  },
+
   // Market Data
   market: {
     tickers: '/market/tickers',

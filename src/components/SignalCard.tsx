@@ -32,10 +32,10 @@ function SignalCard({ signal, onPress }: SignalCardProps) {
     const hours = Math.floor(minutes / 60);
     const days = Math.floor(hours / 24);
 
-    if (days > 0) return `${days}d ago`;
-    if (hours > 0) return `${hours}h ago`;
-    if (minutes > 0) return `${minutes}m ago`;
-    return 'Just now';
+    if (days > 0) return `${days}д назад`;
+    if (hours > 0) return `${hours}ч назад`;
+    if (minutes > 0) return `${minutes}м назад`;
+    return 'Только что';
   };
 
   const confirmedTriggers = signal.aiTriggers.filter(t => t.confirmed).length;
@@ -73,7 +73,7 @@ function SignalCard({ signal, onPress }: SignalCardProps) {
 
       {/* Entry Price */}
       <View style={styles.priceSection}>
-        <Text style={[styles.label, { color: theme.colors.textMuted }]}>Entry</Text>
+        <Text style={[styles.label, { color: theme.colors.textMuted }]}>Вход</Text>
         <Text style={[styles.entryPrice, { color: theme.colors.textPrimary }]}>
           ${formatPrice(signal.entryPrice)}
         </Text>
@@ -129,7 +129,7 @@ function SignalCard({ signal, onPress }: SignalCardProps) {
 
       {/* AI Triggers */}
       <View style={styles.triggersSection}>
-        <Text style={[styles.label, { color: theme.colors.textMuted }]}>AI Triggers</Text>
+        <Text style={[styles.label, { color: theme.colors.textMuted }]}>AI Триггеры</Text>
         <View style={styles.triggersRow}>
           {signal.aiTriggers.map((trigger, index) => (
             <View
@@ -145,7 +145,7 @@ function SignalCard({ signal, onPress }: SignalCardProps) {
             />
           ))}
           <Text style={[styles.triggersText, { color: theme.colors.textSecondary }]}>
-            {confirmedTriggers}/{totalTriggers} confirmed
+            {confirmedTriggers}/{totalTriggers} подтв.
           </Text>
         </View>
       </View>

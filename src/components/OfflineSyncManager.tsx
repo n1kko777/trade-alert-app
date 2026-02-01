@@ -51,15 +51,15 @@ export const OfflineSyncManager: React.FC<OfflineSyncManagerProps> = ({
 
           if (showAlerts && result.processed > 0) {
             Alert.alert(
-              'Sync Complete',
-              `${result.processed} pending action${result.processed > 1 ? 's' : ''} synced successfully.`,
+              'Синхронизация завершена',
+              `${result.processed} отложенных действий успешно синхронизировано.`,
             );
           }
 
           if (showAlerts && result.failed > 0) {
             Alert.alert(
-              'Sync Issues',
-              `${result.failed} action${result.failed > 1 ? 's' : ''} failed to sync. Please check and try again.`,
+              'Проблемы синхронизации',
+              `${result.failed} действий не удалось синхронизировать. Проверьте и попробуйте снова.`,
             );
           }
         } catch (error) {
@@ -67,8 +67,8 @@ export const OfflineSyncManager: React.FC<OfflineSyncManagerProps> = ({
 
           if (showAlerts) {
             Alert.alert(
-              'Sync Failed',
-              'Some pending actions could not be synced. Please try again later.',
+              'Синхронизация не удалась',
+              'Некоторые отложенные действия не удалось синхронизировать. Попробуйте позже.',
             );
           }
         } finally {

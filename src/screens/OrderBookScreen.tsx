@@ -119,51 +119,60 @@ export default function OrderBookScreen() {
   }, [selectedExchange]);
 
   // Fetch order book data from backend API
-  const fetchOrderBook = useCallback(async () => {
+  const fetchOrderBook = useCallback(async (symbolOverride?: string) => {
     try {
       setError(null);
-      const fullSymbol = inputSymbol.toUpperCase().endsWith('USDT')
-        ? inputSymbol.toUpperCase()
-        : `${inputSymbol.toUpperCase()}USDT`;
+      const baseSymbol = symbolOverride || inputSymbol;
+      const fullSymbol = baseSymbol.toUpperCase().endsWith('USDT')
+        ? baseSymbol.toUpperCase()
+        : `${baseSymbol.toUpperCase()}USDT`;
       setSymbol(fullSymbol);
 
       // Fetch ticker and order book from backend API in parallel
       const [tickerResponse, orderBookResponse] = await Promise.all([
-        apiClient.get<ApiTicker>(ENDPOINTS.market.ticker(fullSymbol)),
-        apiClient.get<ApiOrderBook>(ENDPOINTS.market.orderbook(fullSymbol), {
+        apiClient.get<{ ticker: ApiTicker }>(ENDPOINTS.market.ticker(fullSymbol)),
+        apiClient.get<{ orderbook: ApiOrderBook }>(ENDPOINTS.market.orderbook(fullSymbol), {
           params: { depth: ORDER_BOOK_DEPTH },
         }),
       ]);
 
-      if (tickerResponse.data && tickerResponse.data.price) {
-        setCurrentPrice(tickerResponse.data.price);
+      const tickerData = tickerResponse.data.ticker;
+      const orderBookData = orderBookResponse.data.orderbook;
+
+      if (tickerData && tickerData.price) {
+        setCurrentPrice(tickerData.price);
+      }
+
+      // Ensure bids and asks arrays exist
+      if (!orderBookData || !orderBookData.bids || !orderBookData.asks) {
+        throw new Error('Некорректные данные стакана');
       }
 
       // Map API response to local format
       const book: OrderBook = {
-        symbol: orderBookResponse.data.symbol,
-        bids: mapOrderBookEntries(orderBookResponse.data.bids),
-        asks: mapOrderBookEntries(orderBookResponse.data.asks),
-        lastUpdated: orderBookResponse.data.timestamp,
+        symbol: orderBookData.symbol,
+        bids: mapOrderBookEntries(orderBookData.bids),
+        asks: mapOrderBookEntries(orderBookData.asks),
+        lastUpdated: orderBookData.timestamp,
       };
 
       setOrderBook(book);
       setIsWebSocketConnected(false); // No real-time updates from REST API
 
       // Detect whale orders
-      if (tickerResponse.data && tickerResponse.data.price) {
-        detectWhales(book, tickerResponse.data.price);
+      if (tickerData && tickerData.price) {
+        detectWhales(book, tickerData.price);
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load order book');
+      setError(err instanceof Error ? err.message : 'Не удалось загрузить стакан');
       setOrderBook(null);
     }
   }, [inputSymbol, selectedExchange, detectWhales]);
 
   // Initial load
-  const loadData = useCallback(async () => {
+  const loadData = useCallback(async (symbolOverride?: string) => {
     setLoading(true);
-    await fetchOrderBook();
+    await fetchOrderBook(symbolOverride);
     setLoading(false);
   }, [fetchOrderBook]);
 
@@ -188,17 +197,13 @@ export default function OrderBookScreen() {
     setInputSymbol(base);
     setSymbol(sym);
     setWhaleOrders([]);
-    setTimeout(() => {
-      loadData();
-    }, 0);
+    loadData(sym);
   }, [loadData]);
 
   const handleExchangeChange = useCallback((exchangeId: ExchangeId) => {
     setSelectedExchange(exchangeId);
     setWhaleOrders([]);
-    setTimeout(() => {
-      loadData();
-    }, 0);
+    loadData();
   }, [loadData]);
 
   // Calculate max volume for color intensity
@@ -343,7 +348,7 @@ export default function OrderBookScreen() {
           onPress={handleSymbolSubmit}
         >
           <Text style={[styles.searchButtonText, { color: theme.colors.buttonText }]}>
-            Search
+            Поиск
           </Text>
         </TouchableOpacity>
       </View>
@@ -392,7 +397,7 @@ export default function OrderBookScreen() {
           ]}
         />
         <Text style={[styles.statusText, { color: theme.colors.textMuted }]}>
-          {isWebSocketConnected ? 'Live updates' : 'Polling'}
+          {isWebSocketConnected ? 'В реальном времени' : 'Опрос'}
         </Text>
       </View>
 
@@ -402,7 +407,7 @@ export default function OrderBookScreen() {
           <View style={styles.spreadRow}>
             <View style={styles.spreadItem}>
               <Text style={[styles.spreadLabel, { color: theme.colors.success }]}>
-                Best Bid
+                Лучший бид
               </Text>
               <Text style={[styles.spreadValue, { color: theme.colors.changeUpText }]}>
                 {formatPrice(spread.bestBid)}
@@ -410,7 +415,7 @@ export default function OrderBookScreen() {
             </View>
             <View style={styles.spreadItem}>
               <Text style={[styles.spreadLabel, { color: theme.colors.textMuted }]}>
-                Spread
+                Спред
               </Text>
               <Text style={[styles.spreadValue, { color: theme.colors.textPrimary }]}>
                 {formatPrice(spread.value)} ({spread.percent.toFixed(3)}%)
@@ -418,7 +423,7 @@ export default function OrderBookScreen() {
             </View>
             <View style={styles.spreadItem}>
               <Text style={[styles.spreadLabel, { color: theme.colors.danger }]}>
-                Best Ask
+                Лучший аск
               </Text>
               <Text style={[styles.spreadValue, { color: theme.colors.changeDownText }]}>
                 {formatPrice(spread.bestAsk)}
@@ -438,7 +443,7 @@ export default function OrderBookScreen() {
     return (
       <View style={[styles.depthContainer, { backgroundColor: theme.colors.card }]}>
         <Text style={[styles.sectionTitle, { color: theme.colors.textPrimary }]}>
-          Depth Chart
+          График глубины
         </Text>
         <OrderBookDepth
           bids={orderBook.bids}
@@ -457,7 +462,7 @@ export default function OrderBookScreen() {
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={theme.colors.accent} />
           <Text style={[styles.loadingText, { color: theme.colors.textSecondary }]}>
-            Loading order book...
+            Загрузка стакана...
           </Text>
         </View>
       );
@@ -471,10 +476,10 @@ export default function OrderBookScreen() {
           </Text>
           <TouchableOpacity
             style={[styles.retryButton, { backgroundColor: theme.colors.accent }]}
-            onPress={loadData}
+            onPress={() => loadData()}
           >
             <Text style={[styles.retryButtonText, { color: theme.colors.buttonText }]}>
-              Retry
+              Повторить
             </Text>
           </TouchableOpacity>
         </View>
@@ -485,7 +490,7 @@ export default function OrderBookScreen() {
       return (
         <View style={styles.emptyContainer}>
           <Text style={[styles.emptyText, { color: theme.colors.textSecondary }]}>
-            Enter a symbol to view order book
+            Введите символ для просмотра стакана
           </Text>
         </View>
       );
@@ -494,7 +499,7 @@ export default function OrderBookScreen() {
     return (
       <View style={[styles.orderBookContainer, { backgroundColor: theme.colors.card }]}>
         <Text style={[styles.sectionTitle, { color: theme.colors.textPrimary }]}>
-          Order Book
+          Книга ордеров
         </Text>
 
         {/* Two-sided display */}
@@ -503,18 +508,18 @@ export default function OrderBookScreen() {
           <View style={styles.orderBookSide}>
             <View style={styles.orderBookHeader}>
               <Text style={[styles.headerText, { color: theme.colors.success }]}>
-                Bids (Buy)
+                Биды (Покупка)
               </Text>
             </View>
             <View style={styles.columnHeaders}>
               <Text style={[styles.columnHeader, { color: theme.colors.textMuted }]}>
-                Price
+                Цена
               </Text>
               <Text style={[styles.columnHeader, { color: theme.colors.textMuted }]}>
-                Qty
+                Кол-во
               </Text>
               <Text style={[styles.columnHeader, { color: theme.colors.textMuted }]}>
-                Total
+                Всего
               </Text>
             </View>
             {orderBook.bids.slice(0, 10).map((bid, index) =>
@@ -526,18 +531,18 @@ export default function OrderBookScreen() {
           <View style={styles.orderBookSide}>
             <View style={styles.orderBookHeader}>
               <Text style={[styles.headerText, { color: theme.colors.danger }]}>
-                Asks (Sell)
+                Аски (Продажа)
               </Text>
             </View>
             <View style={styles.columnHeaders}>
               <Text style={[styles.columnHeader, { color: theme.colors.textMuted }]}>
-                Price
+                Цена
               </Text>
               <Text style={[styles.columnHeader, { color: theme.colors.textMuted }]}>
-                Qty
+                Кол-во
               </Text>
               <Text style={[styles.columnHeader, { color: theme.colors.textMuted }]}>
-                Total
+                Всего
               </Text>
             </View>
             {orderBook.asks.slice(0, 10).map((ask, index) =>
@@ -565,7 +570,7 @@ export default function OrderBookScreen() {
         Стакан
       </Text>
       <Text style={[styles.subtitle, { color: theme.colors.textSecondary }]}>
-        Real-time order book with depth analysis
+        Стакан в реальном времени с анализом глубины
       </Text>
 
       <FlatList

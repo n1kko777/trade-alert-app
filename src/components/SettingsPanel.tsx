@@ -93,9 +93,9 @@ export default function SettingsPanel({
   const switchThumbColor = theme.colors.switchThumb;
   const [openInfo, setOpenInfo] = React.useState<Record<string, boolean>>({});
   const themeOptions: { value: ThemeMode; label: string }[] = [
-    { value: 'system', label: 'System' },
-    { value: 'light', label: 'Light' },
-    { value: 'dark', label: 'Dark' },
+    { value: 'system', label: 'Система' },
+    { value: 'light', label: 'Светлая' },
+    { value: 'dark', label: 'Тёмная' },
   ];
   const toggleInfo = (key: string) =>
     setOpenInfo((prev) => ({
@@ -141,9 +141,9 @@ export default function SettingsPanel({
           <View style={styles.toggleRow}>
           <View style={styles.toggleCopy}>
             {renderFieldLabel(
-              'Track all futures-tradable symbols',
+              'Отслеживать все фьючерсные символы',
               'trackAll',
-              'Pulls the full spot ticker list on each poll and keeps symbols with Bybit futures. Symbol list and per-coin overrides are disabled in this mode.'
+              'Получает полный список спотовых тикеров и оставляет только символы с фьючерсами Bybit. Список символов и переопределения отключены в этом режиме.'
             )}
           </View>
           <Switch
@@ -155,7 +155,7 @@ export default function SettingsPanel({
         </View>
       </View>
       <View style={styles.field}>
-        {renderFieldLabel('Theme', 'theme', 'Use system, light, or dark appearance.')}
+        {renderFieldLabel('Тема', 'theme', 'Используйте системную, светлую или тёмную тему.')}
         <View style={styles.themeToggle}>
           {themeOptions.map((option) => {
             const isActive = themeModeInput === option.value;
@@ -180,9 +180,9 @@ export default function SettingsPanel({
       </View>
       <View style={styles.field}>
         {renderFieldLabel(
-          'Symbols (comma separated)',
+          'Символы (через запятую)',
           'symbols',
-          'Comma-separated list of symbols to monitor. Only symbols with active Bybit futures markets are tracked.'
+          'Список символов для мониторинга через запятую. Отслеживаются только символы с активными фьючерсными рынками Bybit.'
         )}
         <TextInput
           value={symbolInput}
@@ -197,9 +197,9 @@ export default function SettingsPanel({
           <View style={styles.fieldRow}>
             <View style={styles.fieldInline}>
               {renderFieldLabel(
-                'Threshold %',
+                'Порог %',
                 'threshold',
-                'Triggers an alert when price change meets or exceeds this percent.'
+                'Срабатывает алерт при изменении цены на указанный процент или более.'
               )}
               <TextInput
                 value={thresholdInput}
@@ -212,9 +212,9 @@ export default function SettingsPanel({
             </View>
             <View style={styles.fieldInline}>
               {renderFieldLabel(
-                'Window (min)',
+                'Окно (мин)',
                 'window',
-                'Time window used to measure the percent change.',
+                'Временное окно для измерения процентного изменения.',
                 'right'
               )}
               <TextInput
@@ -229,9 +229,9 @@ export default function SettingsPanel({
           </View>
           <View style={styles.field}>
             {renderFieldLabel(
-              'Cooldown (min)',
+              'Кулдаун (мин)',
               'cooldown',
-              'Minimum minutes between alerts for the same symbol.'
+              'Минимальное время между алертами для одного символа.'
             )}
             <TextInput
               value={cooldownInput}
@@ -245,9 +245,9 @@ export default function SettingsPanel({
           <View style={styles.fieldRow}>
             <View style={styles.fieldInline}>
               {renderFieldLabel(
-                'Alert retention (days)',
+                'Хранение алертов (дней)',
                 'retention',
-                'How long to keep alert history before pruning.'
+                'Как долго хранить историю алертов до очистки.'
               )}
               <TextInput
                 value={retentionInput}
@@ -260,9 +260,9 @@ export default function SettingsPanel({
             </View>
             <View style={styles.fieldInline}>
               {renderFieldLabel(
-                'Max stored alerts',
+                'Макс. алертов',
                 'maxAlerts',
-                'Hard cap on how many alerts are kept.',
+                'Жёсткий лимит на количество хранимых алертов.',
                 'right'
               )}
               <TextInput
@@ -277,9 +277,9 @@ export default function SettingsPanel({
           </View>
           <View style={styles.field}>
             {renderFieldLabel(
-              'Polling interval (sec)',
+              'Интервал опроса (сек)',
               'poll',
-              'How often prices are fetched when polling is used.'
+              'Как часто получать цены при использовании опроса.'
             )}
             <TextInput
               value={pollInput}
@@ -293,9 +293,9 @@ export default function SettingsPanel({
       {!trackAllSymbolsInput ? (
         <View style={styles.field}>
           {renderFieldLabel(
-            'Symbol overrides',
+            'Переопределения символов',
             'overrides',
-            'Override threshold, window, and cooldown per symbol. Leave empty to use global settings.'
+            'Переопределите порог, окно и кулдаун для каждого символа. Оставьте пустым для глобальных настроек.'
           )}
           <View style={styles.overrideList}>
             {settings.symbols.map((symbol) => (
@@ -336,9 +336,9 @@ export default function SettingsPanel({
             <View style={styles.toggleRow}>
               <View style={styles.toggleCopy}>
                 {renderFieldLabel(
-                  'Background monitoring',
+                  'Фоновый мониторинг',
                   'background',
-                  'Uses OS background tasks. Frequency is limited by iOS/Android.'
+                  'Использует фоновые задачи ОС. Частота ограничена iOS/Android.'
                 )}
               </View>
               <Switch
@@ -349,16 +349,16 @@ export default function SettingsPanel({
               />
             </View>
             {backgroundInput && backgroundStatus === 'unavailable' ? (
-              <Text style={styles.helperWarn}>Background fetch is disabled by the system.</Text>
+              <Text style={styles.helperWarn}>Фоновое обновление отключено системой.</Text>
             ) : null}
           </View>
         <View style={styles.field}>
           <View style={styles.toggleRow}>
             <View style={styles.toggleCopy}>
               {renderFieldLabel(
-                'Realtime stream (WebSocket)',
+                'Реалтайм поток (WebSocket)',
                 'websocket',
-                'Faster updates with lower delay. Falls back to polling if the stream drops. Realtime streams are disabled in all-coins mode.'
+                'Быстрые обновления с низкой задержкой. Переключается на опрос при разрыве. Реалтайм потоки отключены в режиме всех монет.'
               )}
             </View>
             <Switch
@@ -374,9 +374,9 @@ export default function SettingsPanel({
             <View style={styles.toggleRow}>
               <View style={styles.toggleCopy}>
                 {renderFieldLabel(
-                  'Alert notifications',
+                  'Уведомления об алертах',
                   'notifications',
-                  'Sends a local notification when an alert is triggered.'
+                  'Отправляет локальное уведомление при срабатывании алерта.'
                 )}
               </View>
               <Switch
@@ -388,12 +388,12 @@ export default function SettingsPanel({
             </View>
             {notificationsInput && isExpoGo ? (
               <Text style={styles.helperWarn}>
-                Expo Go on Android doesn't support push notifications on SDK 53+. Use a dev build
-                to enable alerts.
+                Expo Go на Android не поддерживает push-уведомления на SDK 53+. Используйте dev build
+                для включения алертов.
               </Text>
             ) : null}
             {notificationsInput && notificationStatus === 'denied' ? (
-              <Text style={styles.helperWarn}>Permission denied. Enable in iOS Settings.</Text>
+              <Text style={styles.helperWarn}>Разрешение отклонено. Включите в Настройках iOS.</Text>
             ) : null}
           </View>
           {notificationsInput ? (
@@ -401,9 +401,9 @@ export default function SettingsPanel({
               <View style={styles.toggleRow}>
                 <View style={styles.toggleCopy}>
                   {renderFieldLabel(
-                    'Notification sound',
+                    'Звук уведомлений',
                     'sound',
-                    'Disable to keep alerts silent while still logging them.'
+                    'Отключите для тихих алертов с записью в лог.'
                   )}
                 </View>
                 <Switch
@@ -419,9 +419,9 @@ export default function SettingsPanel({
             <View style={styles.toggleRow}>
               <View style={styles.toggleCopy}>
                 {renderFieldLabel(
-                  'Quiet hours',
+                  'Тихие часы',
                   'quietHours',
-                  'Suppress notifications between the selected times.'
+                  'Подавлять уведомления в выбранный период времени.'
                 )}
               </View>
               <Switch
@@ -443,7 +443,7 @@ export default function SettingsPanel({
                   autoCorrect={false}
                   keyboardType="numbers-and-punctuation"
                 />
-                <Text style={styles.timeSeparator}>to</Text>
+                <Text style={styles.timeSeparator}>до</Text>
                 <TextInput
                   value={quietEndInput}
                   onChangeText={onQuietEndChange}
@@ -458,11 +458,11 @@ export default function SettingsPanel({
             ) : null}
           </View>
           <TouchableOpacity style={styles.saveButton} onPress={onApply}>
-            <Text style={styles.saveButtonText}>Apply settings</Text>
+            <Text style={styles.saveButtonText}>Применить настройки</Text>
           </TouchableOpacity>
           <Text style={styles.helperText}>
-            Data source: Bybit public market tickers. Not affiliated with Bybit. Not financial
-            advice.
+            Источник данных: публичные тикеры Bybit. Не связано с Bybit. Не финансовая
+            консультация.
           </Text>
     </View>
   );

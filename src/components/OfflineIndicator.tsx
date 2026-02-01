@@ -78,20 +78,20 @@ export const OfflineIndicator: React.FC<OfflineIndicatorProps> = ({
   const getStatusConfig = () => {
     if (showReconnecting) {
       return {
-        text: 'Back online!',
+        text: 'Снова онлайн!',
         backgroundColor: theme.colors.success,
         textColor: '#FFFFFF',
       };
     }
     if (isChecking) {
       return {
-        text: 'Checking connection...',
+        text: 'Проверка соединения...',
         backgroundColor: theme.colors.warning,
         textColor: '#000000',
       };
     }
     return {
-      text: 'No internet connection',
+      text: 'Нет подключения к интернету',
       backgroundColor: theme.colors.danger,
       textColor: '#FFFFFF',
     };
@@ -133,7 +133,7 @@ export const OfflineIndicator: React.FC<OfflineIndicatorProps> = ({
             hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
           >
             <Text style={[styles.dismissText, { color: config.textColor }]}>
-              Dismiss
+              Закрыть
             </Text>
           </TouchableOpacity>
         )}

@@ -5,13 +5,13 @@ import { useTheme } from '../theme-context';
 export type Timeframe = '1m' | '5m' | '15m' | '1h' | '4h' | '1d' | '1w';
 
 const TIMEFRAMES: { value: Timeframe; label: string }[] = [
-  { value: '1m', label: '1m' },
-  { value: '5m', label: '5m' },
-  { value: '15m', label: '15m' },
-  { value: '1h', label: '1H' },
-  { value: '4h', label: '4H' },
-  { value: '1d', label: '1D' },
-  { value: '1w', label: '1W' },
+  { value: '1m', label: '1м' },
+  { value: '5m', label: '5м' },
+  { value: '15m', label: '15м' },
+  { value: '1h', label: '1ч' },
+  { value: '4h', label: '4ч' },
+  { value: '1d', label: '1д' },
+  { value: '1w', label: '1н' },
 ];
 
 interface TimeframeSelectorProps {

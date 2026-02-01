@@ -116,6 +116,12 @@ export default function PnLChart({ data, currentValue }: PnLChartProps) {
   };
 
   const periods: TimePeriod[] = ['24h', '7d', '30d', 'all'];
+  const periodLabels: Record<TimePeriod, string> = {
+    '24h': '24Ч',
+    '7d': '7Д',
+    '30d': '30Д',
+    'all': 'Всё',
+  };
 
   const lineColor = isPositive ? theme.colors.changeUpText : theme.colors.changeDownText;
   const gradientColor = isPositive ? theme.colors.changeUp : theme.colors.changeDown;
@@ -126,7 +132,7 @@ export default function PnLChart({ data, currentValue }: PnLChartProps) {
       <View style={styles.header}>
         <View>
           <Text style={[styles.label, { color: theme.colors.textMuted }]}>
-            Portfolio Value
+            Стоимость портфеля
           </Text>
           <Text style={[styles.value, { color: theme.colors.textPrimary }]}>
             {formatValue(currentValue)}
@@ -181,7 +187,7 @@ export default function PnLChart({ data, currentValue }: PnLChartProps) {
         ) : (
           <View style={styles.noDataContainer}>
             <Text style={[styles.noDataText, { color: theme.colors.textMuted }]}>
-              Not enough data for this period
+              Недостаточно данных за этот период
             </Text>
           </View>
         )}
@@ -204,7 +210,7 @@ export default function PnLChart({ data, currentValue }: PnLChartProps) {
                 { color: period === p ? theme.colors.buttonText : theme.colors.textSecondary },
               ]}
             >
-              {p.toUpperCase()}
+              {periodLabels[p]}
             </Text>
           </TouchableOpacity>
         ))}

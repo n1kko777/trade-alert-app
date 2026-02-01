@@ -18,20 +18,24 @@ export type Trader = {
 
 interface TraderCardProps {
   trader: Trader;
+  isFollowing?: boolean;
   onFollow?: (trader: Trader) => void;
   onPress?: (trader: Trader) => void;
 }
 
-function TraderCard({ trader, onFollow, onPress }: TraderCardProps) {
+function TraderCard({ trader, isFollowing: isFollowingProp, onFollow, onPress }: TraderCardProps) {
   const { theme } = useTheme();
-  const [isFollowing, setIsFollowing] = useState(trader.isFollowing ?? false);
+  const [isFollowingLocal, setIsFollowingLocal] = useState(trader.isFollowing ?? false);
+  const isFollowing = isFollowingProp ?? isFollowingLocal;
 
   const isProfitable = trader.pnl >= 0;
   const pnlColor = isProfitable ? theme.colors.changeUpText : theme.colors.changeDownText;
   const pnlBgColor = isProfitable ? theme.colors.changeUp : theme.colors.changeDown;
 
   const handleFollow = () => {
-    setIsFollowing(!isFollowing);
+    if (isFollowingProp === undefined) {
+      setIsFollowingLocal(!isFollowingLocal);
+    }
     onFollow?.(trader);
   };
 
@@ -85,7 +89,7 @@ function TraderCard({ trader, onFollow, onPress }: TraderCardProps) {
           </View>
           <View style={styles.statsRow}>
             <Text style={[styles.statText, { color: theme.colors.textMuted }]}>
-              Win: {trader.winRate.toFixed(0)}%
+              Побед: {trader.winRate.toFixed(0)}%
             </Text>
             <Text style={[styles.statDivider, { color: theme.colors.textMuted }]}>|</Text>
             <Text style={[styles.statText, { color: theme.colors.textMuted }]}>

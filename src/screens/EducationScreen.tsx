@@ -16,11 +16,11 @@ import type { RootStackParamList } from '../navigation/types';
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
 const categories: { id: CourseCategory; label: string }[] = [
-  { id: 'all', label: 'Vse' },
-  { id: 'basic', label: 'Osnovy' },
-  { id: 'technical', label: 'Teh. analiz' },
-  { id: 'psychology', label: 'Psihologia' },
-  { id: 'advanced', label: 'Prodvinutiy' },
+  { id: 'all', label: 'Все' },
+  { id: 'basic', label: 'Основы' },
+  { id: 'technical', label: 'Тех. анализ' },
+  { id: 'psychology', label: 'Психология' },
+  { id: 'advanced', label: 'Продвинутый' },
 ];
 
 export default function EducationScreen() {

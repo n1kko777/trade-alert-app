@@ -26,8 +26,8 @@ export default function WatchlistCard({ symbol, quote, history, settings }: Watc
   const maxPrice = historyPrices.length ? Math.max(...historyPrices) : undefined;
   const hasRange = typeof minPrice === 'number' && typeof maxPrice === 'number';
   const rangeText = hasRange
-    ? `Range $${formatPrice(minPrice)} - $${formatPrice(maxPrice)}`
-    : 'Range --';
+    ? `Диапазон $${formatPrice(minPrice)} - $${formatPrice(maxPrice)}`
+    : 'Диапазон --';
   const sparklinePoints = getSparklinePoints(
     trimmedHistory,
     SPARKLINE_WIDTH,
@@ -38,7 +38,7 @@ export default function WatchlistCard({ symbol, quote, history, settings }: Watc
     : isDown
     ? theme.colors.statusBad
     : theme.colors.statusMuted;
-  const alertConfigText = `Alert ${thresholdPct}% • ${windowMinutes}m • CD ${cooldownMinutes}m`;
+  const alertConfigText = `Алерт ${thresholdPct}% • ${windowMinutes}м • КД ${cooldownMinutes}м`;
 
   return (
     <View style={styles.card}>
@@ -67,7 +67,7 @@ export default function WatchlistCard({ symbol, quote, history, settings }: Watc
       <View style={styles.cardBody}>
         <View>
           <Text style={styles.price}>${formatPrice(quote?.price)}</Text>
-          <Text style={styles.cardMeta}>Updated {formatClock(quote?.lastUpdated)}</Text>
+          <Text style={styles.cardMeta}>Обновлено {formatClock(quote?.lastUpdated)}</Text>
           <Text style={styles.cardRange}>{rangeText}</Text>
           <Text style={styles.cardConfig}>{alertConfigText}</Text>
         </View>
@@ -84,7 +84,7 @@ export default function WatchlistCard({ symbol, quote, history, settings }: Watc
               ) : null}
             </Svg>
           </View>
-          <Text style={styles.sparklineLabel}>{windowMinutes}m trend</Text>
+          <Text style={styles.sparklineLabel}>Тренд {windowMinutes}м</Text>
         </View>
       </View>
     </View>

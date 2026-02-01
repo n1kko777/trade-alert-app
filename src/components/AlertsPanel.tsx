@@ -21,13 +21,13 @@ export default function AlertsPanel({
     <>
       <View style={styles.sectionHeader}>
         <View>
-          <Text style={styles.sectionTitle}>Alerts</Text>
+          <Text style={styles.sectionTitle}>Алерты</Text>
           <Text style={styles.sectionSub}>{alertLabel}</Text>
         </View>
         <View style={styles.sectionActions}>
           <TouchableOpacity onPress={onClear} disabled={!alerts.length}>
             <Text style={[styles.sectionAction, !alerts.length ? styles.sectionActionMuted : null]}>
-              Clear
+              Очистить
             </Text>
           </TouchableOpacity>
         </View>
@@ -36,7 +36,7 @@ export default function AlertsPanel({
       <View style={styles.panel}>
         {alerts.length === 0 ? (
           <Text style={styles.emptyText}>
-            No spikes detected yet. Adjust thresholds or add more symbols.
+            Скачков пока не обнаружено. Настройте пороги или добавьте больше символов.
           </Text>
         ) : (
           alerts.slice(0, 6).map((alert) => {

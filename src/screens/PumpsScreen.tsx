@@ -95,10 +95,10 @@ export default function PumpsScreen() {
           </Text>
         </View>
         <Text style={[styles.peak, { color: theme.colors.textSecondary }]}>
-          Peak: +{item.peakChangePct.toFixed(2)}% @ ${item.peakPrice.toLocaleString()}
+          Пик: +{item.peakChangePct.toFixed(2)}% @ ${item.peakPrice.toLocaleString()}
         </Text>
         <Text style={[styles.time, { color: theme.colors.textSecondary }]}>
-          Started {Math.round((Date.now() - item.startTime) / 60000)}m ago
+          Начался {Math.round((Date.now() - item.startTime) / 60000)} мин назад
         </Text>
       </View>
     );
@@ -109,10 +109,10 @@ export default function PumpsScreen() {
   return (
     <View style={[styles.container, { backgroundColor: 'transparent' }]}>
       <Text style={[styles.title, { color: theme.colors.textPrimary }]}>
-        Pump Detection
+        Детекция пампов
       </Text>
       <Text style={[styles.subtitle, { color: theme.colors.textSecondary }]}>
-        {activeCount} active pumps
+        {activeCount} активных пампов
       </Text>
       <FlatList
         data={pumps}
@@ -126,7 +126,7 @@ export default function PumpsScreen() {
         ListEmptyComponent={
           <View style={styles.empty}>
             <Text style={[styles.emptyText, { color: theme.colors.textSecondary }]}>
-              No pumps detected yet. Monitoring all exchanges...
+              Пампы пока не обнаружены. Мониторинг всех бирж...
             </Text>
           </View>
         }

@@ -190,14 +190,59 @@ export async function getCandles(
 }
 
 /**
- * Get liquidations for a symbol
- * @param _symbol Trading pair symbol
- * @returns Array of liquidations (placeholder - returns empty array)
+ * Get recent liquidations for a symbol
+ * Generates realistic simulated liquidation data based on current price and volatility
+ * In production, this would connect to exchange WebSocket feeds for real liquidation events
+ *
+ * @param symbol Trading pair symbol
+ * @returns Array of recent liquidations
  */
-export async function getLiquidations(_symbol: string): Promise<Liquidation[]> {
-  // Placeholder implementation
-  // Will be implemented in Phase 4.3: Liquidation calculator
-  return [];
+export async function getLiquidations(symbol: string): Promise<Liquidation[]> {
+  // Get current price to base liquidations on
+  const ticker = await getCachedTicker(symbol);
+  if (!ticker) {
+    return [];
+  }
+
+  const currentPrice = ticker.price;
+  const now = Date.now();
+  const liquidations: Liquidation[] = [];
+
+  // Generate simulated liquidations based on price and 24h change
+  // More volatile markets have more liquidations
+  const volatilityFactor = Math.abs(ticker.change24h || 0) / 100;
+  const numLiquidations = Math.floor(5 + volatilityFactor * 20);
+
+  for (let i = 0; i < numLiquidations; i++) {
+    // Random side (longs get liquidated when price drops, shorts when it rises)
+    const side: 'long' | 'short' = Math.random() > 0.5 ? 'long' : 'short';
+
+    // Liquidation price is near current price (within 2-5% depending on leverage)
+    const leverageMultiplier = 1 + Math.random() * 0.05; // 1-5% away from current price
+    const price = side === 'long'
+      ? currentPrice * (1 - leverageMultiplier * 0.01)
+      : currentPrice * (1 + leverageMultiplier * 0.01);
+
+    // Random quantity (smaller positions more common than large)
+    const baseQuantity = 0.1 + Math.random() * 10;
+    const quantity = baseQuantity * (currentPrice / 1000); // Scale by price
+
+    // Random timestamp within last hour
+    const timestamp = now - Math.floor(Math.random() * 3600000);
+
+    liquidations.push({
+      symbol,
+      side,
+      price,
+      quantity,
+      timestamp,
+    });
+  }
+
+  // Sort by timestamp descending (most recent first)
+  liquidations.sort((a, b) => b.timestamp - a.timestamp);
+
+  return liquidations;
 }
 
 // ============================================================================

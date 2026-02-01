@@ -1,6 +1,6 @@
-// Auth service with mock implementation
-// Ready for AsyncStorage integration
+// Auth service with AsyncStorage persistence
 
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   User,
   AuthState,
@@ -82,8 +82,7 @@ class AuthService {
     }
 
     this.currentUser = userEntry.user;
-    // TODO: Save to AsyncStorage
-    // await AsyncStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(this.currentUser));
+    await AsyncStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(this.currentUser));
 
     return this.currentUser;
   }
@@ -120,8 +119,7 @@ class AuthService {
     };
 
     this.currentUser = newUser;
-    // TODO: Save to AsyncStorage
-    // await AsyncStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(this.currentUser));
+    await AsyncStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(this.currentUser));
 
     return newUser;
   }
@@ -130,19 +128,25 @@ class AuthService {
   async logout(): Promise<void> {
     await simulateDelay(500);
     this.currentUser = null;
-    // TODO: Remove from AsyncStorage
-    // await AsyncStorage.removeItem(AUTH_STORAGE_KEY);
+    await AsyncStorage.removeItem(AUTH_STORAGE_KEY);
   }
 
   // Load user from storage (for app startup)
   async loadStoredUser(): Promise<User | null> {
-    await simulateDelay(500);
-    // TODO: Load from AsyncStorage
-    // const stored = await AsyncStorage.getItem(AUTH_STORAGE_KEY);
-    // if (stored) {
-    //   this.currentUser = JSON.parse(stored);
-    //   return this.currentUser;
-    // }
+    try {
+      const stored = await AsyncStorage.getItem(AUTH_STORAGE_KEY);
+      if (stored) {
+        const parsedUser = JSON.parse(stored);
+        // Convert createdAt back to Date if it's a string
+        if (parsedUser.createdAt && typeof parsedUser.createdAt === 'string') {
+          parsedUser.createdAt = new Date(parsedUser.createdAt);
+        }
+        this.currentUser = parsedUser;
+        return this.currentUser;
+      }
+    } catch (error) {
+      console.warn('Failed to load stored user:', error);
+    }
     return null;
   }
 
@@ -183,6 +187,49 @@ class AuthService {
     const currentIndex = tierOrder.indexOf(this.getSubscriptionTier());
     const requiredIndex = tierOrder.indexOf(requiredTier);
     return currentIndex >= requiredIndex;
+  }
+
+  // Request password reset
+  async requestPasswordReset(email: string): Promise<void> {
+    await simulateDelay(1500);
+
+    const normalizedEmail = email.toLowerCase().trim();
+
+    // In production, this would:
+    // 1. Verify email exists in database
+    // 2. Generate a secure reset token
+    // 3. Send email with reset link
+    // 4. Store token with expiration
+
+    // For now, we just validate the email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(normalizedEmail)) {
+      throw new Error('Некорректный email адрес');
+    }
+
+    // Always succeed to prevent email enumeration attacks
+    // In production, log this attempt for security monitoring
+  }
+
+  // Reset password with token
+  async resetPassword(token: string, newPassword: string): Promise<void> {
+    await simulateDelay(1000);
+
+    if (newPassword.length < 6) {
+      throw new Error('Пароль должен содержать минимум 6 символов');
+    }
+
+    // In production, this would:
+    // 1. Validate the reset token
+    // 2. Check token expiration
+    // 3. Update user password in database
+    // 4. Invalidate the token
+    // 5. Optionally logout all other sessions
+
+    // For mock implementation, just validate inputs
+    if (!token || token.length < 10) {
+      throw new Error('Недействительная ссылка для сброса пароля');
+    }
   }
 
   // Upgrade subscription (mock implementation)

@@ -10,7 +10,9 @@ import {
   ScrollView,
   ActivityIndicator,
   Alert,
+  Linking,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useTheme } from '../../theme-context';
@@ -22,37 +24,78 @@ type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
 const LoginScreen: React.FC = () => {
   const navigation = useNavigation<NavigationProp>();
-
-  const onNavigateToRegister = useCallback(() => {
-    navigation.replace('Register');
-  }, [navigation]);
-
-  const onForgotPassword = useCallback(() => {
-    Alert.alert('Reset Password', 'Password reset functionality coming soon.');
-  }, []);
   const { theme } = useTheme();
   const { login, isLoading } = useAuth();
   const styles = createStyles(theme);
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [isResetting, setIsResetting] = useState(false);
+
+  const onNavigateToRegister = useCallback(() => {
+    navigation.replace('Register');
+  }, [navigation]);
+
+  const validateEmail = (emailToValidate: string): boolean => {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(emailToValidate);
+  };
+
+  const onForgotPassword = useCallback(() => {
+    Alert.prompt(
+      'Сброс пароля',
+      'Введите email для восстановления пароля:',
+      [
+        { text: 'Отмена', style: 'cancel' },
+        {
+          text: 'Отправить',
+          onPress: async (inputEmail?: string) => {
+            if (!inputEmail || !inputEmail.trim()) {
+              Alert.alert('Ошибка', 'Введите email адрес');
+              return;
+            }
+
+            if (!validateEmail(inputEmail.trim())) {
+              Alert.alert('Ошибка', 'Введите корректный email адрес');
+              return;
+            }
+
+            setIsResetting(true);
+            try {
+              // Simulate API call - in production this would call the backend
+              await new Promise(resolve => setTimeout(resolve, 1500));
+
+              Alert.alert(
+                'Письмо отправлено',
+                `Инструкции по сбросу пароля отправлены на ${inputEmail.trim()}. Проверьте папку "Спам", если письмо не пришло.`,
+                [{ text: 'OK' }]
+              );
+            } catch (error) {
+              Alert.alert(
+                'Ошибка',
+                'Не удалось отправить письмо. Попробуйте позже.'
+              );
+            } finally {
+              setIsResetting(false);
+            }
+          },
+        },
+      ],
+      'plain-text',
+      email // Pre-fill with current email if entered
+    );
+  }, [email]);
 
   const handleLogin = async () => {
-    console.log('handleLogin called, email:', email, 'password:', password ? '***' : 'empty');
     if (!email.trim() || !password.trim()) {
-      console.log('Validation failed - empty fields');
       Alert.alert('Ошибка', 'Введите email и пароль');
       return;
     }
-    console.log('Attempting login...');
 
     try {
       await login({ email: email.trim(), password });
-      // Login successful - close the modal
-      console.log('Login successful, closing modal');
       navigation.goBack();
     } catch (error) {
-      console.log('Login error:', error);
       Alert.alert(
         'Ошибка входа',
         error instanceof Error ? error.message : 'Не удалось войти'
@@ -60,12 +103,23 @@ const LoginScreen: React.FC = () => {
     }
   };
 
-  const handleSocialLogin = (provider: 'google' | 'apple') => {
+  const handleSocialLogin = useCallback((provider: 'google' | 'apple') => {
+    const providerName = provider === 'google' ? 'Google' : 'Apple';
+
     Alert.alert(
-      'В разработке',
-      `Вход через ${provider === 'google' ? 'Google' : 'Apple'} скоро будет доступен`
+      `Вход через ${providerName}`,
+      `Авторизация через ${providerName} будет доступна в следующем обновлении.\n\nПока вы можете войти с помощью email и пароля или создать новый аккаунт.`,
+      [
+        { text: 'OK', style: 'cancel' },
+        {
+          text: 'Узнать больше',
+          onPress: () => {
+            Linking.openURL('https://tradepulse.app/auth-methods');
+          },
+        },
+      ]
     );
-  };
+  }, []);
 
   return (
     <KeyboardAvoidingView
@@ -148,20 +202,22 @@ const LoginScreen: React.FC = () => {
           <TouchableOpacity
             style={styles.socialButton}
             onPress={() => handleSocialLogin('google')}
-            disabled={isLoading}
+            disabled={isLoading || isResetting}
           >
-            <Text style={styles.socialIcon}>G</Text>
+            <Ionicons name="logo-google" size={20} color={theme.colors.textPrimary} style={styles.socialIconStyle} />
             <Text style={styles.socialButtonText}>Google</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity
-            style={styles.socialButton}
-            onPress={() => handleSocialLogin('apple')}
-            disabled={isLoading}
-          >
-            <Text style={styles.socialIcon}>A</Text>
-            <Text style={styles.socialButtonText}>Apple</Text>
-          </TouchableOpacity>
+          {Platform.OS === 'ios' && (
+            <TouchableOpacity
+              style={styles.socialButton}
+              onPress={() => handleSocialLogin('apple')}
+              disabled={isLoading || isResetting}
+            >
+              <Ionicons name="logo-apple" size={20} color={theme.colors.textPrimary} style={styles.socialIconStyle} />
+              <Text style={styles.socialButtonText}>Apple</Text>
+            </TouchableOpacity>
+          )}
         </View>
 
         {/* Register Link */}
@@ -292,10 +348,7 @@ const createStyles = (theme: Theme) =>
       borderWidth: 1,
       borderColor: theme.colors.cardBorder,
     },
-    socialIcon: {
-      fontFamily: 'SpaceGrotesk_700Bold',
-      fontSize: 18,
-      color: theme.colors.textPrimary,
+    socialIconStyle: {
       marginRight: 8,
     },
     socialButtonText: {

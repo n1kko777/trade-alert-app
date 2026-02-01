@@ -90,8 +90,8 @@ export default function AssetAllocation({ assets, totalValue }: AssetAllocationP
       const otherValue = rest.reduce((sum, item) => sum + item.value, 0);
       const otherPercentage = rest.reduce((sum, item) => sum + item.percentage, 0);
       result.push({
-        symbol: 'OTHER',
-        name: 'Other',
+        symbol: 'Прочие',
+        name: 'Прочие',
         value: otherValue,
         percentage: otherPercentage,
       });
@@ -138,7 +138,7 @@ export default function AssetAllocation({ assets, totalValue }: AssetAllocationP
     return (
       <View style={[styles.container, { backgroundColor: theme.colors.card }]}>
         <Text style={[styles.emptyText, { color: theme.colors.textMuted }]}>
-          No assets to display
+          Нет активов для отображения
         </Text>
       </View>
     );
@@ -174,7 +174,7 @@ export default function AssetAllocation({ assets, totalValue }: AssetAllocationP
               fontSize={12}
               fill={theme.colors.textMuted}
             >
-              Total
+              Всего
             </SvgText>
             <SvgText
               x={CHART_SIZE / 2}

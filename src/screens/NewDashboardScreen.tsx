@@ -111,21 +111,21 @@ export default function NewDashboardScreen() {
     () => [
       {
         id: 'pumps',
-        title: 'Pumps',
+        title: 'Пампы',
         icon: 'flash',
         color: theme.colors.warning,
         route: 'Main' as keyof RootStackParamList,
       },
       {
         id: 'charts',
-        title: 'Charts',
+        title: 'Графики',
         icon: 'trending-up',
         color: theme.colors.accent,
         route: 'Charts',
       },
       {
         id: 'ai',
-        title: 'AI Analysis',
+        title: 'AI Анализ',
         icon: 'sparkles',
         color: theme.colors.success,
         route: 'AIChat',
@@ -186,14 +186,14 @@ export default function NewDashboardScreen() {
 
   const fearGreedLabel =
     marketOverview.fearGreedIndex > 75
-      ? 'Extreme Greed'
+      ? 'Крайняя жадность'
       : marketOverview.fearGreedIndex > 60
-      ? 'Greed'
+      ? 'Жадность'
       : marketOverview.fearGreedIndex > 40
-      ? 'Neutral'
+      ? 'Нейтрально'
       : marketOverview.fearGreedIndex > 25
-      ? 'Fear'
-      : 'Extreme Fear';
+      ? 'Страх'
+      : 'Крайний страх';
 
   return (
     <ScrollView
@@ -210,10 +210,10 @@ export default function NewDashboardScreen() {
       {/* Header */}
       <View style={styles.header}>
         <Text style={[styles.greeting, { color: theme.colors.textSecondary }]}>
-          Welcome back
+          С возвращением
         </Text>
         <Text style={[styles.title, { color: theme.colors.textPrimary }]}>
-          Dashboard
+          Главная
         </Text>
       </View>
 
@@ -226,7 +226,7 @@ export default function NewDashboardScreen() {
       {/* Quick Access */}
       <View style={styles.quickAccessSection}>
         <Text style={[styles.sectionTitle, { color: theme.colors.textPrimary }]}>
-          Quick Access
+          Быстрый доступ
         </Text>
         <View style={styles.quickAccessGrid}>
           {quickAccessItems.map((item) => (
@@ -263,7 +263,7 @@ export default function NewDashboardScreen() {
       {/* Market Overview */}
       <View style={styles.marketSection}>
         <Text style={[styles.sectionTitle, { color: theme.colors.textPrimary }]}>
-          Market Overview
+          Обзор рынка
         </Text>
         <View
           style={[
@@ -276,7 +276,7 @@ export default function NewDashboardScreen() {
               <Text
                 style={[styles.marketLabel, { color: theme.colors.textMuted }]}
               >
-                BTC Dominance
+                Доминация BTC
               </Text>
               <Text
                 style={[styles.marketValue, { color: theme.colors.textPrimary }]}
@@ -288,7 +288,7 @@ export default function NewDashboardScreen() {
               <Text
                 style={[styles.marketLabel, { color: theme.colors.textMuted }]}
               >
-                Total Market Cap
+                Капитализация
               </Text>
               <Text
                 style={[styles.marketValue, { color: theme.colors.textPrimary }]}
@@ -302,7 +302,7 @@ export default function NewDashboardScreen() {
               <Text
                 style={[styles.marketLabel, { color: theme.colors.textMuted }]}
               >
-                24h Volume
+                Объём 24ч
               </Text>
               <Text
                 style={[styles.marketValue, { color: theme.colors.textPrimary }]}
@@ -314,7 +314,7 @@ export default function NewDashboardScreen() {
               <Text
                 style={[styles.marketLabel, { color: theme.colors.textMuted }]}
               >
-                Fear & Greed
+                Страх и жадность
               </Text>
               <View style={styles.fearGreedRow}>
                 <Text style={[styles.marketValue, { color: fearGreedColor }]}>

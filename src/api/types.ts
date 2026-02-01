@@ -113,6 +113,8 @@ export interface RegisterRequest {
 export interface RegisterResponse {
   message: string;
   user: ApiUser;
+  /** Tokens for auto-login after registration (optional - backend may require email verification) */
+  tokens?: TokenPair;
 }
 
 /**

@@ -10,13 +10,17 @@ import {
   ScrollView,
   Dimensions,
 } from 'react-native';
+import { useRoute, RouteProp } from '@react-navigation/native';
 import { useTheme } from '../theme-context';
 import TradingChart from '../components/TradingChart';
 import TimeframeSelector, { type Timeframe } from '../components/TimeframeSelector';
 import { apiClient, ENDPOINTS } from '../api';
 import type { ApiTicker, ApiCandle } from '../api/types';
 import type { Candle, Ticker, ExchangeId } from '../services/exchanges/types';
+import type { RootStackParamList } from '../navigation/types';
 import { Ionicons } from '@expo/vector-icons';
+
+type ChartScreenRouteProp = RouteProp<RootStackParamList, 'ChartFullscreen'>;
 
 const SUPPORTED_EXCHANGES: ExchangeId[] = ['binance', 'bybit'];
 const POPULAR_SYMBOLS = ['BTC', 'ETH', 'SOL'];
@@ -50,11 +54,17 @@ function mapApiCandle(data: ApiCandle): Candle {
 
 export default function ChartScreen() {
   const { theme } = useTheme();
+  const route = useRoute<ChartScreenRouteProp>();
 
-  const [selectedExchange, setSelectedExchange] = useState<ExchangeId>('binance');
-  const [symbol, setSymbol] = useState('BTCUSDT');
-  const [inputSymbol, setInputSymbol] = useState('BTC');
-  const [timeframe, setTimeframe] = useState<Timeframe>('1h');
+  // Get initial values from route params if available
+  const initialSymbol = route.params?.symbol || 'BTCUSDT';
+  const initialExchange = (route.params?.exchange as ExchangeId) || 'binance';
+  const initialTimeframe = (route.params?.timeframe as Timeframe) || '1h';
+
+  const [selectedExchange, setSelectedExchange] = useState<ExchangeId>(initialExchange);
+  const [symbol, setSymbol] = useState(initialSymbol);
+  const [inputSymbol, setInputSymbol] = useState(initialSymbol.replace('USDT', ''));
+  const [timeframe, setTimeframe] = useState<Timeframe>(initialTimeframe);
   const [candles, setCandles] = useState<Candle[]>([]);
   const [ticker, setTicker] = useState<Ticker | null>(null);
   const [loading, setLoading] = useState(false);
@@ -84,7 +94,7 @@ export default function ChartScreen() {
       setCandles(candlesResponse.data.candles.map(mapApiCandle));
       setTicker(mapApiTicker(tickerResponse.data.ticker));
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load chart data');
+      setError(err instanceof Error ? err.message : 'Не удалось загрузить данные графика');
       setCandles([]);
       setTicker(null);
     }
@@ -300,7 +310,7 @@ export default function ChartScreen() {
         <View style={[styles.loadingContainer, { backgroundColor: theme.colors.card }]}>
           <ActivityIndicator size="large" color={theme.colors.accent} />
           <Text style={[styles.loadingText, { color: theme.colors.textSecondary }]}>
-            Loading chart data...
+            Загрузка графика...
           </Text>
         </View>
       );
@@ -318,7 +328,7 @@ export default function ChartScreen() {
             onPress={loadData}
           >
             <Text style={[styles.retryButtonText, { color: theme.colors.buttonText }]}>
-              Retry
+              Повторить
             </Text>
           </TouchableOpacity>
         </View>
@@ -330,7 +340,7 @@ export default function ChartScreen() {
         <View style={[styles.emptyContainer, { backgroundColor: theme.colors.card }]}>
           <Ionicons name="bar-chart-outline" size={48} color={theme.colors.textMuted} />
           <Text style={[styles.emptyText, { color: theme.colors.textSecondary }]}>
-            Enter a symbol to view chart
+            Введите символ для просмотра графика
           </Text>
         </View>
       );
@@ -357,7 +367,7 @@ export default function ChartScreen() {
       <View style={styles.statsContainer}>
         <View style={[styles.statCard, { backgroundColor: theme.colors.card }]}>
           <Text style={[styles.statLabel, { color: theme.colors.textMuted }]}>
-            24h High
+            Макс. 24ч
           </Text>
           <Text style={[styles.statValue, { color: theme.colors.changeUpText }]}>
             ${formatPrice(ticker.high24h)}
@@ -365,7 +375,7 @@ export default function ChartScreen() {
         </View>
         <View style={[styles.statCard, { backgroundColor: theme.colors.card }]}>
           <Text style={[styles.statLabel, { color: theme.colors.textMuted }]}>
-            24h Low
+            Мин. 24ч
           </Text>
           <Text style={[styles.statValue, { color: theme.colors.changeDownText }]}>
             ${formatPrice(ticker.low24h)}
@@ -373,7 +383,7 @@ export default function ChartScreen() {
         </View>
         <View style={[styles.statCard, { backgroundColor: theme.colors.card }]}>
           <Text style={[styles.statLabel, { color: theme.colors.textMuted }]}>
-            Volume
+            Объём
           </Text>
           <Text style={[styles.statValue, { color: theme.colors.textPrimary }]}>
             {formatVolume(ticker.volume24h)}
@@ -437,7 +447,7 @@ export default function ChartScreen() {
   }
 
   return (
-    <View style={[styles.container, { backgroundColor: 'transparent' }]}>
+    <View style={[styles.container, { backgroundColor: theme.colors.appBackground }]}>
       <Text style={[styles.title, { color: theme.colors.textPrimary }]}>
         График
       </Text>

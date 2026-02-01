@@ -1,10 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   ScrollView,
   Text,
   View,
   TouchableOpacity,
   StyleSheet,
+  Alert,
 } from 'react-native';
 import { useTheme } from '../theme-context';
 import ChatRoom, { ChatRoomData, ChatMessage } from '../components/ChatRoom';
@@ -334,6 +335,74 @@ export default function CommunityScreen() {
   const { theme, styles } = useTheme();
   const [selectedTab, setSelectedTab] = useState<Tab>('chats');
   const [selectedRoom, setSelectedRoom] = useState<ChatRoomData | null>(null);
+  const [chatRooms, setChatRooms] = useState<ChatRoomData[]>(demoChatRooms);
+  const [followedTraders, setFollowedTraders] = useState<Set<string>>(new Set());
+
+  const handleSendMessage = useCallback((message: string) => {
+    if (!selectedRoom || !message.trim()) return;
+
+    const newMessage: ChatMessage = {
+      id: `msg_${Date.now()}`,
+      userId: 'current_user',
+      username: 'You',
+      message: message.trim(),
+      timestamp: Date.now(),
+    };
+
+    setChatRooms((prevRooms) =>
+      prevRooms.map((room) =>
+        room.id === selectedRoom.id
+          ? {
+              ...room,
+              messages: [...room.messages, newMessage],
+              lastMessage: message.trim(),
+              lastMessageTime: Date.now(),
+            }
+          : room
+      )
+    );
+
+    setSelectedRoom((prev) =>
+      prev
+        ? {
+            ...prev,
+            messages: [...prev.messages, newMessage],
+            lastMessage: message.trim(),
+            lastMessageTime: Date.now(),
+          }
+        : null
+    );
+  }, [selectedRoom]);
+
+  const handleFollowTrader = useCallback((trader: Trader) => {
+    const isFollowing = followedTraders.has(trader.id);
+
+    if (isFollowing) {
+      setFollowedTraders((prev) => {
+        const next = new Set(prev);
+        next.delete(trader.id);
+        return next;
+      });
+      Alert.alert('Отписка', `Вы отписались от ${trader.username}`);
+    } else {
+      setFollowedTraders((prev) => new Set(prev).add(trader.id));
+      Alert.alert('Подписка', `Вы подписались на ${trader.username}!`);
+    }
+  }, [followedTraders]);
+
+  const handleViewTraderProfile = useCallback((trader: Trader) => {
+    Alert.alert(
+      trader.username,
+      `Рейтинг: #${trader.rank}\nВинрейт: ${trader.winRate}%\nСделок: ${trader.totalTrades}\nПодписчики: ${trader.followers.toLocaleString()}\nPnL: $${trader.pnl.toLocaleString()} (${trader.pnlPercentage > 0 ? '+' : ''}${trader.pnlPercentage.toFixed(1)}%)`,
+      [
+        { text: 'Закрыть', style: 'cancel' },
+        {
+          text: followedTraders.has(trader.id) ? 'Отписаться' : 'Подписаться',
+          onPress: () => handleFollowTrader(trader),
+        },
+      ]
+    );
+  }, [followedTraders, handleFollowTrader]);
 
   const formatTimeAgo = (timestamp: number): string => {
     const diff = Date.now() - timestamp;
@@ -350,9 +419,7 @@ export default function CommunityScreen() {
       <ChatRoom
         room={selectedRoom}
         onBack={() => setSelectedRoom(null)}
-        onSendMessage={(message) => {
-          console.log('Sending message:', message);
-        }}
+        onSendMessage={handleSendMessage}
       />
     );
   }
@@ -459,10 +526,10 @@ export default function CommunityScreen() {
         <View style={localStyles.ideaFooter}>
           <View style={localStyles.ideaStats}>
             <Text style={[localStyles.ideaStat, { color: theme.colors.textMuted }]}>
-              {idea.likes} like
+              {idea.likes} лайков
             </Text>
             <Text style={[localStyles.ideaStat, { color: theme.colors.textMuted }]}>
-              {idea.comments} comments
+              {idea.comments} комментов
             </Text>
           </View>
           <Text style={[localStyles.ideaTime, { color: theme.colors.textFaint }]}>
@@ -517,9 +584,9 @@ export default function CommunityScreen() {
         <View style={localStyles.section}>
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>Чат-комнаты</Text>
-            <Text style={styles.sectionSub}>{demoChatRooms.length} комнат</Text>
+            <Text style={styles.sectionSub}>{chatRooms.length} комнат</Text>
           </View>
-          {demoChatRooms.map(renderChatRoomItem)}
+          {chatRooms.map(renderChatRoomItem)}
         </View>
       )}
 
@@ -533,8 +600,9 @@ export default function CommunityScreen() {
             <TraderCard
               key={trader.id}
               trader={trader}
-              onFollow={(t) => console.log('Follow:', t.username)}
-              onPress={(t) => console.log('View profile:', t.username)}
+              isFollowing={followedTraders.has(trader.id)}
+              onFollow={handleFollowTrader}
+              onPress={handleViewTraderProfile}
             />
           ))}
         </View>

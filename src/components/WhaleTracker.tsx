@@ -57,9 +57,9 @@ export default function WhaleTracker({
     const now = Date.now();
     const diff = now - timestamp;
 
-    if (diff < 60000) return 'Just now';
-    if (diff < 3600000) return `${Math.floor(diff / 60000)}m ago`;
-    if (diff < 86400000) return `${Math.floor(diff / 3600000)}h ago`;
+    if (diff < 60000) return 'Только что';
+    if (diff < 3600000) return `${Math.floor(diff / 60000)} мин назад`;
+    if (diff < 86400000) return `${Math.floor(diff / 3600000)} ч назад`;
     return new Date(timestamp).toLocaleDateString();
   };
 
@@ -68,7 +68,7 @@ export default function WhaleTracker({
       <View style={[styles.container, { backgroundColor: theme.colors.card }]}>
         <View style={styles.header}>
           <Text style={[styles.title, { color: theme.colors.textPrimary }]}>
-            Whale Tracker
+            Крупные ордера
           </Text>
           <View style={[styles.thresholdBadge, { backgroundColor: theme.colors.metricCard }]}>
             <Text style={[styles.thresholdText, { color: theme.colors.textSecondary }]}>
@@ -78,10 +78,10 @@ export default function WhaleTracker({
         </View>
         <View style={styles.emptyState}>
           <Text style={[styles.emptyIcon, { color: theme.colors.textMuted }]}>
-            No whale orders detected
+            Крупные ордера не обнаружены
           </Text>
           <Text style={[styles.emptySubtext, { color: theme.colors.textFaint }]}>
-            Large orders above {formatVolume(threshold)} will appear here
+            Ордера выше {formatVolume(threshold)} будут отображаться здесь
           </Text>
         </View>
       </View>
@@ -92,7 +92,7 @@ export default function WhaleTracker({
     <View style={[styles.container, { backgroundColor: theme.colors.card }]}>
       <View style={styles.header}>
         <Text style={[styles.title, { color: theme.colors.textPrimary }]}>
-          Whale Tracker
+          Крупные ордера
         </Text>
         <View style={[styles.thresholdBadge, { backgroundColor: theme.colors.metricCard }]}>
           <Text style={[styles.thresholdText, { color: theme.colors.textSecondary }]}>
@@ -138,7 +138,7 @@ export default function WhaleTracker({
               {/* Side indicator */}
               <View style={[styles.sideIndicator, { backgroundColor: sideColor }]}>
                 <Text style={styles.sideText}>
-                  {isBuy ? 'BUY' : 'SELL'}
+                  {isBuy ? 'ПОКУПКА' : 'ПРОДАЖА'}
                 </Text>
               </View>
 
@@ -168,7 +168,7 @@ export default function WhaleTracker({
 
       {orders.length > maxOrders && (
         <Text style={[styles.moreText, { color: theme.colors.textMuted }]}>
-          +{orders.length - maxOrders} more orders
+          +{orders.length - maxOrders} ещё ордеров
         </Text>
       )}
     </View>

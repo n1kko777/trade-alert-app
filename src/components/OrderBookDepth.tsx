@@ -1,6 +1,6 @@
-import React, { useMemo, useState, useCallback } from 'react';
-import { View, Text, StyleSheet, Dimensions, TouchableWithoutFeedback } from 'react-native';
-import Svg, { Path, Line, Text as SvgText, G, Rect, Circle } from 'react-native-svg';
+import React, { useMemo } from 'react';
+import { View, Text, StyleSheet, Dimensions } from 'react-native';
+import Svg, { Path, Line, Text as SvgText, Rect, G } from 'react-native-svg';
 import { useTheme } from '../theme-context';
 import type { OrderBookEntry } from '../services/exchanges/types';
 
@@ -12,12 +12,6 @@ interface OrderBookDepthProps {
   height?: number;
 }
 
-interface TouchInfo {
-  side: 'bid' | 'ask';
-  price: number;
-  volume: number;
-}
-
 export default function OrderBookDepth({
   bids,
   asks,
@@ -26,152 +20,114 @@ export default function OrderBookDepth({
   height = 200,
 }: OrderBookDepthProps) {
   const { theme } = useTheme();
-  const [touchInfo, setTouchInfo] = useState<TouchInfo | null>(null);
+
+  const chartHeight = height - 50;
+  const padding = 15;
 
   // Calculate depth chart data
   const chartData = useMemo(() => {
     if (bids.length === 0 && asks.length === 0) {
-      return { bidPath: '', askPath: '', minPrice: 0, maxPrice: 0, maxVolume: 0 };
+      return null;
     }
 
-    // Get cumulative volumes (already provided in total)
-    const bidData = bids.map(b => ({ price: b.price, cumVolume: b.total }));
-    const askData = asks.map(a => ({ price: a.price, cumVolume: a.total }));
+    // Sort bids by price descending (highest first - closest to spread)
+    const sortedBids = [...bids].sort((a, b) => b.price - a.price);
+    // Sort asks by price ascending (lowest first - closest to spread)
+    const sortedAsks = [...asks].sort((a, b) => a.price - b.price);
 
-    // Find price range (with some padding)
-    const allPrices = [...bidData.map(b => b.price), ...askData.map(a => a.price)];
-    const minPrice = Math.min(...allPrices) * 0.995;
-    const maxPrice = Math.max(...allPrices) * 1.005;
-    const priceRange = maxPrice - minPrice;
+    // Use equal spacing for visualization - each side gets half the width
+    const halfWidth = (maxWidth - padding * 2) / 2;
+    const midX = maxWidth / 2;
 
-    // Find max volume for scaling
-    const maxBidVolume = bidData.length > 0 ? Math.max(...bidData.map(b => b.cumVolume)) : 0;
-    const maxAskVolume = askData.length > 0 ? Math.max(...askData.map(a => a.cumVolume)) : 0;
-    const maxVolume = Math.max(maxBidVolume, maxAskVolume, 1);
+    // Calculate max cumulative volume for Y scaling
+    const maxBidVolume = sortedBids.length > 0 ? Math.max(...sortedBids.map(b => b.total)) : 0;
+    const maxAskVolume = sortedAsks.length > 0 ? Math.max(...sortedAsks.map(a => a.total)) : 0;
+    const maxVolume = Math.max(maxBidVolume, maxAskVolume, 0.001);
 
-    // Chart dimensions
-    const chartWidth = maxWidth;
-    const chartHeight = height - 40; // Leave room for labels
-    const midX = chartWidth / 2;
-
-    // Scale functions
-    const priceToY = (price: number) => {
-      return chartHeight - ((price - minPrice) / priceRange) * chartHeight;
+    // Volume to Y: 0 at bottom, maxVolume at top
+    const volumeToY = (volume: number): number => {
+      const normalized = volume / maxVolume;
+      return chartHeight - normalized * (chartHeight - padding);
     };
 
-    const volumeToX = (volume: number, side: 'bid' | 'ask') => {
-      const normalizedVolume = volume / maxVolume;
-      const xOffset = normalizedVolume * (midX - 10);
-      return side === 'bid' ? midX - xOffset : midX + xOffset;
-    };
-
-    // Build bid path (left side, green)
+    // Build bid path - bids go from center to LEFT
+    // Each bid spreads evenly across the left half
     let bidPath = '';
-    if (bidData.length > 0) {
-      // Sort bids by price descending (highest first)
-      const sortedBids = [...bidData].sort((a, b) => b.price - a.price);
+    if (sortedBids.length > 0) {
+      const stepWidth = halfWidth / sortedBids.length;
 
-      // Start from middle at highest bid price
-      bidPath = `M ${midX} ${priceToY(sortedBids[0].price)}`;
+      // Start at center bottom
+      bidPath = `M ${midX} ${chartHeight}`;
 
-      // Draw step-wise path
-      sortedBids.forEach((bid, i) => {
-        const x = volumeToX(bid.cumVolume, 'bid');
-        const y = priceToY(bid.price);
-        if (i === 0) {
-          bidPath += ` L ${x} ${y}`;
-        } else {
-          // Horizontal then vertical for step effect
-          const prevY = priceToY(sortedBids[i - 1].price);
-          const prevX = volumeToX(sortedBids[i - 1].cumVolume, 'bid');
-          bidPath += ` L ${prevX} ${y} L ${x} ${y}`;
-        }
-      });
+      // First point - at center, up to first bid's volume
+      bidPath += ` L ${midX} ${volumeToY(sortedBids[0].total)}`;
 
-      // Close path back to middle
-      const lastBid = sortedBids[sortedBids.length - 1];
-      bidPath += ` L ${midX} ${priceToY(lastBid.price)} Z`;
+      // Step through each bid going left
+      for (let i = 1; i < sortedBids.length; i++) {
+        const prevY = volumeToY(sortedBids[i - 1].total);
+        const currX = midX - (i * stepWidth);
+        const currY = volumeToY(sortedBids[i].total);
+
+        // Horizontal line to new X at previous height
+        bidPath += ` L ${currX} ${prevY}`;
+        // Vertical line to new height
+        bidPath += ` L ${currX} ${currY}`;
+      }
+
+      // Close to bottom-left then back to start
+      const lastX = midX - ((sortedBids.length - 1) * stepWidth);
+      bidPath += ` L ${lastX} ${chartHeight}`;
+      bidPath += ' Z';
     }
 
-    // Build ask path (right side, red)
+    // Build ask path - asks go from center to RIGHT
     let askPath = '';
-    if (askData.length > 0) {
-      // Sort asks by price ascending (lowest first)
-      const sortedAsks = [...askData].sort((a, b) => a.price - b.price);
+    if (sortedAsks.length > 0) {
+      const stepWidth = halfWidth / sortedAsks.length;
 
-      // Start from middle at lowest ask price
-      askPath = `M ${midX} ${priceToY(sortedAsks[0].price)}`;
+      // Start at center bottom
+      askPath = `M ${midX} ${chartHeight}`;
 
-      // Draw step-wise path
-      sortedAsks.forEach((ask, i) => {
-        const x = volumeToX(ask.cumVolume, 'ask');
-        const y = priceToY(ask.price);
-        if (i === 0) {
-          askPath += ` L ${x} ${y}`;
-        } else {
-          // Horizontal then vertical for step effect
-          const prevY = priceToY(sortedAsks[i - 1].price);
-          const prevX = volumeToX(sortedAsks[i - 1].cumVolume, 'ask');
-          askPath += ` L ${prevX} ${y} L ${x} ${y}`;
-        }
-      });
+      // First point - at center, up to first ask's volume
+      askPath += ` L ${midX} ${volumeToY(sortedAsks[0].total)}`;
 
-      // Close path back to middle
-      const lastAsk = sortedAsks[sortedAsks.length - 1];
-      askPath += ` L ${midX} ${priceToY(lastAsk.price)} Z`;
+      // Step through each ask going right
+      for (let i = 1; i < sortedAsks.length; i++) {
+        const prevY = volumeToY(sortedAsks[i - 1].total);
+        const currX = midX + (i * stepWidth);
+        const currY = volumeToY(sortedAsks[i].total);
+
+        // Horizontal line to new X at previous height
+        askPath += ` L ${currX} ${prevY}`;
+        // Vertical line to new height
+        askPath += ` L ${currX} ${currY}`;
+      }
+
+      // Close to bottom-right then back to start
+      const lastX = midX + ((sortedAsks.length - 1) * stepWidth);
+      askPath += ` L ${lastX} ${chartHeight}`;
+      askPath += ' Z';
     }
+
+    // Get price info for labels
+    const bestBid = sortedBids.length > 0 ? sortedBids[0].price : 0;
+    const bestAsk = sortedAsks.length > 0 ? sortedAsks[0].price : 0;
+    const worstBid = sortedBids.length > 0 ? sortedBids[sortedBids.length - 1].price : 0;
+    const worstAsk = sortedAsks.length > 0 ? sortedAsks[sortedAsks.length - 1].price : 0;
+    const midPrice = bestBid > 0 && bestAsk > 0 ? (bestBid + bestAsk) / 2 : currentPrice;
 
     return {
       bidPath,
       askPath,
-      minPrice,
-      maxPrice,
       maxVolume,
-      priceToY,
-      volumeToX,
-      chartHeight,
       midX,
+      midPrice,
+      bestBid,
+      bestAsk,
+      worstBid,
+      worstAsk,
     };
-  }, [bids, asks, maxWidth, height]);
-
-  const handleTouch = useCallback((event: { nativeEvent: { locationX: number; locationY: number } }) => {
-    const { locationX, locationY } = event.nativeEvent;
-    const { midX, minPrice, maxPrice, maxVolume, chartHeight } = chartData;
-
-    if (!chartHeight || !midX) return;
-
-    // Determine which side was touched
-    const side: 'bid' | 'ask' = locationX < midX ? 'bid' : 'ask';
-
-    // Convert Y to price
-    const priceRange = maxPrice - minPrice;
-    const price = maxPrice - (locationY / chartHeight) * priceRange;
-
-    // Find closest order
-    const orders = side === 'bid' ? bids : asks;
-    let closestOrder: OrderBookEntry | null = null;
-    let minDiff = Infinity;
-
-    for (const order of orders) {
-      const diff = Math.abs(order.price - price);
-      if (diff < minDiff) {
-        minDiff = diff;
-        closestOrder = order;
-      }
-    }
-
-    if (closestOrder) {
-      setTouchInfo({
-        side,
-        price: closestOrder.price,
-        volume: closestOrder.total,
-      });
-    }
-  }, [bids, asks, chartData]);
-
-  const handleTouchEnd = useCallback(() => {
-    setTouchInfo(null);
-  }, []);
+  }, [bids, asks, currentPrice, maxWidth, chartHeight, padding]);
 
   const formatVolume = (volume: number) => {
     if (volume >= 1000000) return `${(volume / 1000000).toFixed(2)}M`;
@@ -185,141 +141,99 @@ export default function OrderBookDepth({
     return price.toPrecision(4);
   };
 
-  if (bids.length === 0 && asks.length === 0) {
+  if (!chartData) {
     return (
       <View style={[styles.container, { height }]}>
         <Text style={[styles.emptyText, { color: theme.colors.textSecondary }]}>
-          No order book data
+          Нет данных стакана
         </Text>
       </View>
     );
   }
 
-  const chartHeight = height - 40;
-  const currentPriceY = chartData.priceToY ? chartData.priceToY(currentPrice) : chartHeight / 2;
-
   return (
     <View style={[styles.container, { height }]}>
-      <TouchableWithoutFeedback
-        onPressIn={handleTouch}
-        onPressOut={handleTouchEnd}
-      >
-        <View>
-          <Svg width={maxWidth} height={chartHeight}>
-            {/* Bid area (green) */}
-            {chartData.bidPath && (
-              <Path
-                d={chartData.bidPath}
-                fill={theme.colors.changeUp}
-                stroke={theme.colors.success}
-                strokeWidth={1}
-                opacity={0.7}
-              />
-            )}
+      <Svg width={maxWidth} height={chartHeight}>
+        {/* Bid area (green) - left side */}
+        {chartData.bidPath && (
+          <Path
+            d={chartData.bidPath}
+            fill={theme.colors.success}
+            fillOpacity={0.3}
+            stroke={theme.colors.success}
+            strokeWidth={2}
+          />
+        )}
 
-            {/* Ask area (red) */}
-            {chartData.askPath && (
-              <Path
-                d={chartData.askPath}
-                fill={theme.colors.changeDown}
-                stroke={theme.colors.danger}
-                strokeWidth={1}
-                opacity={0.7}
-              />
-            )}
+        {/* Ask area (red) - right side */}
+        {chartData.askPath && (
+          <Path
+            d={chartData.askPath}
+            fill={theme.colors.danger}
+            fillOpacity={0.3}
+            stroke={theme.colors.danger}
+            strokeWidth={2}
+          />
+        )}
 
-            {/* Current price line */}
-            {currentPriceY >= 0 && currentPriceY <= chartHeight && (
-              <G>
-                <Line
-                  x1={0}
-                  y1={currentPriceY}
-                  x2={maxWidth}
-                  y2={currentPriceY}
-                  stroke={theme.colors.accent}
-                  strokeWidth={2}
-                  strokeDasharray="4,4"
-                />
-                <Rect
-                  x={maxWidth / 2 - 40}
-                  y={currentPriceY - 10}
-                  width={80}
-                  height={20}
-                  rx={4}
-                  fill={theme.colors.accent}
-                />
-                <SvgText
-                  x={maxWidth / 2}
-                  y={currentPriceY + 4}
-                  fontSize={10}
-                  fontWeight="bold"
-                  fill={theme.colors.buttonText}
-                  textAnchor="middle"
-                >
-                  {formatPrice(currentPrice)}
-                </SvgText>
-              </G>
-            )}
+        {/* Center line (spread) */}
+        <Line
+          x1={chartData.midX}
+          y1={0}
+          x2={chartData.midX}
+          y2={chartHeight}
+          stroke={theme.colors.accent}
+          strokeWidth={2}
+          strokeDasharray="5,5"
+        />
 
-            {/* Touch indicator */}
-            {touchInfo && chartData.priceToY && chartData.volumeToX && (
-              <G>
-                <Circle
-                  cx={chartData.volumeToX(touchInfo.volume, touchInfo.side)}
-                  cy={chartData.priceToY(touchInfo.price)}
-                  r={6}
-                  fill={touchInfo.side === 'bid' ? theme.colors.success : theme.colors.danger}
-                />
-                <Rect
-                  x={chartData.volumeToX(touchInfo.volume, touchInfo.side) - 50}
-                  y={chartData.priceToY(touchInfo.price) - 30}
-                  width={100}
-                  height={24}
-                  rx={4}
-                  fill={theme.colors.card}
-                  stroke={touchInfo.side === 'bid' ? theme.colors.success : theme.colors.danger}
-                  strokeWidth={1}
-                />
-                <SvgText
-                  x={chartData.volumeToX(touchInfo.volume, touchInfo.side)}
-                  y={chartData.priceToY(touchInfo.price) - 14}
-                  fontSize={10}
-                  fill={theme.colors.textPrimary}
-                  textAnchor="middle"
-                >
-                  {formatVolume(touchInfo.volume)} @ {formatPrice(touchInfo.price)}
-                </SvgText>
-              </G>
-            )}
-          </Svg>
+        {/* Mid price label */}
+        <G>
+          <Rect
+            x={chartData.midX - 50}
+            y={5}
+            width={100}
+            height={22}
+            rx={4}
+            fill={theme.colors.accent}
+          />
+          <SvgText
+            x={chartData.midX}
+            y={20}
+            fontSize={12}
+            fontWeight="bold"
+            fill={theme.colors.buttonText}
+            textAnchor="middle"
+          >
+            {formatPrice(chartData.midPrice)}
+          </SvgText>
+        </G>
+      </Svg>
 
-          {/* Labels */}
-          <View style={styles.labels}>
-            <View style={styles.labelRow}>
-              <Text style={[styles.label, { color: theme.colors.success }]}>
-                Bids (Buy)
-              </Text>
-              <Text style={[styles.labelCenter, { color: theme.colors.textMuted }]}>
-                Price
-              </Text>
-              <Text style={[styles.label, { color: theme.colors.danger }]}>
-                Asks (Sell)
-              </Text>
-            </View>
-            <View style={styles.labelRow}>
-              <Text style={[styles.volumeLabel, { color: theme.colors.textSecondary }]}>
-                Vol: {formatVolume(chartData.maxVolume)}
-              </Text>
-              <Text style={[styles.priceRange, { color: theme.colors.textMuted }]}>
-                {formatPrice(chartData.minPrice)} - {formatPrice(chartData.maxPrice)}
-              </Text>
-              <Text style={[styles.volumeLabel, { color: theme.colors.textSecondary }]}>
-                Vol: {formatVolume(chartData.maxVolume)}
-              </Text>
-            </View>
+      {/* Labels */}
+      <View style={styles.labels}>
+        <View style={styles.labelRow}>
+          <View style={styles.labelLeft}>
+            <Text style={[styles.sideLabel, { color: theme.colors.success }]}>
+              Биды
+            </Text>
+            <Text style={[styles.priceSmall, { color: theme.colors.textMuted }]}>
+              {formatPrice(chartData.worstBid)} - {formatPrice(chartData.bestBid)}
+            </Text>
+          </View>
+          <Text style={[styles.volumeLabel, { color: theme.colors.textSecondary }]}>
+            Макс: {formatVolume(chartData.maxVolume)}
+          </Text>
+          <View style={styles.labelRight}>
+            <Text style={[styles.sideLabel, { color: theme.colors.danger, textAlign: 'right' }]}>
+              Аски
+            </Text>
+            <Text style={[styles.priceSmall, { color: theme.colors.textMuted, textAlign: 'right' }]}>
+              {formatPrice(chartData.bestAsk)} - {formatPrice(chartData.worstAsk)}
+            </Text>
           </View>
         </View>
-      </TouchableWithoutFeedback>
+      </View>
     </View>
   );
 }
@@ -340,24 +254,24 @@ const styles = StyleSheet.create({
   labelRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 8,
+    alignItems: 'flex-start',
+    paddingHorizontal: 10,
   },
-  label: {
+  labelLeft: {
+    flex: 1,
+  },
+  labelRight: {
+    flex: 1,
+  },
+  sideLabel: {
     fontSize: 12,
     fontWeight: '600',
-    flex: 1,
   },
-  labelCenter: {
-    fontSize: 11,
-    textAlign: 'center',
-    flex: 1,
+  priceSmall: {
+    fontSize: 9,
+    marginTop: 2,
   },
   volumeLabel: {
-    fontSize: 10,
-    flex: 1,
-  },
-  priceRange: {
     fontSize: 10,
     textAlign: 'center',
     flex: 1,

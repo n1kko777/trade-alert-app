@@ -1,4 +1,4 @@
-import React, { useRef, useCallback, useEffect, useState } from 'react';
+import React, { useRef, useCallback, useEffect, useState, forwardRef, useImperativeHandle } from 'react';
 import { View, StyleSheet, ActivityIndicator, Text } from 'react-native';
 import { WebView, WebViewMessageEvent } from 'react-native-webview';
 import { useTheme } from '../theme-context';
@@ -12,13 +12,19 @@ interface TradingChartProps {
   height?: number;
 }
 
-export default function TradingChart({
+export interface TradingChartRef {
+  zoomIn: () => void;
+  zoomOut: () => void;
+  fitContent: () => void;
+}
+
+const TradingChart = forwardRef<TradingChartRef, TradingChartProps>(function TradingChart({
   candles,
   symbol,
   timeframe,
   onReady,
   height = 350,
-}: TradingChartProps) {
+}, ref) {
   const { theme } = useTheme();
   const webViewRef = useRef<WebView>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -293,11 +299,18 @@ export default function TradingChart({
     webViewRef.current?.postMessage(JSON.stringify({ type: 'fitContent' }));
   }, []);
 
+  // Expose controls via ref
+  useImperativeHandle(ref, () => ({
+    zoomIn,
+    zoomOut,
+    fitContent,
+  }), [zoomIn, zoomOut, fitContent]);
+
   if (error) {
     return (
       <View style={[styles.container, styles.centerContent, { height, backgroundColor: theme.colors.card }]}>
         <Text style={[styles.errorText, { color: theme.colors.danger }]}>
-          Chart Error: {error}
+          Ошибка графика: {error}
         </Text>
       </View>
     );
@@ -324,20 +337,15 @@ export default function TradingChart({
         <View style={[styles.loadingOverlay, { backgroundColor: theme.colors.card }]}>
           <ActivityIndicator size="large" color={theme.colors.accent} />
           <Text style={[styles.loadingText, { color: theme.colors.textSecondary }]}>
-            Loading chart...
+            Загрузка графика...
           </Text>
         </View>
       )}
     </View>
   );
-}
+});
 
-// Export zoom controls for external use
-export const ChartControls = {
-  zoomIn: () => {},
-  zoomOut: () => {},
-  fitContent: () => {},
-};
+export default TradingChart;
 
 const styles = StyleSheet.create({
   container: {
