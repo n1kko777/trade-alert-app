@@ -12,6 +12,7 @@ import {
 import { useTheme } from '../theme-context';
 import { ChatMessage } from '../services/ai/types';
 import AnalysisCard from './AnalysisCard';
+import MarkdownText from './MarkdownText';
 
 interface AIChatProps {
   messages: ChatMessage[];
@@ -57,14 +58,22 @@ function MessageBubble({ message, onCopy }: MessageBubbleProps) {
             : [styles.aiBubble, { backgroundColor: theme.colors.card }],
         ]}
       >
-        <Text
-          style={[
-            styles.messageText,
-            { color: isUser ? theme.colors.buttonText : theme.colors.textPrimary },
-          ]}
-        >
-          {message.content}
-        </Text>
+        {isUser ? (
+          <Text
+            style={[
+              styles.messageText,
+              { color: theme.colors.buttonText },
+            ]}
+          >
+            {message.content}
+          </Text>
+        ) : (
+          <MarkdownText
+            style={{ color: theme.colors.textPrimary }}
+          >
+            {message.content}
+          </MarkdownText>
+        )}
         <View style={styles.messageFooter}>
           <Text
             style={[
