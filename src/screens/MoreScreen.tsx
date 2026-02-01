@@ -107,6 +107,11 @@ export default function MoreScreen() {
         item.action();
         return;
       }
+      // Redirect to Subscription if Pro feature and user is not Pro
+      if (item.isPro && !isPro()) {
+        navigation.navigate('Subscription');
+        return;
+      }
       if (item.route) {
         // Navigate to the route with empty params for screens that need them
         if (item.route === 'OrderBook' || item.route === 'LiquidationMap') {
@@ -118,7 +123,7 @@ export default function MoreScreen() {
         }
       }
     },
-    [navigation]
+    [navigation, isPro]
   );
 
   const handleLoginPress = useCallback(() => {

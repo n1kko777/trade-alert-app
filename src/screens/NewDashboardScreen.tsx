@@ -190,7 +190,12 @@ export default function NewDashboardScreen() {
 
   const handleQuickAccessPress = useCallback(
     (item: QuickAccessItem) => {
+      // AI Chat is a Pro feature
       if (item.route === 'AIChat') {
+        if (!isPro()) {
+          navigation.navigate('Subscription');
+          return;
+        }
         navigation.navigate('AIChat', {});
       } else if (item.id === 'pumps') {
         // Navigate to Pumps tab within Main navigator
@@ -199,7 +204,7 @@ export default function NewDashboardScreen() {
         navigation.navigate(item.route as any);
       }
     },
-    [navigation]
+    [navigation, isPro]
   );
 
   const handleUpgrade = useCallback(() => {

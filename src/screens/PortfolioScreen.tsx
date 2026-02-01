@@ -19,6 +19,7 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../theme-context';
 import { useIsOffline } from '../context/NetworkContext';
+import { useAuth } from '../context/AuthContext';
 import AssetAllocation, { AssetAllocationItem } from '../components/AssetAllocation';
 import PositionCard, { Position } from '../components/PositionCard';
 import PnLChart, { PnLDataPoint } from '../components/PnLChart';
@@ -78,9 +79,11 @@ export default function PortfolioScreen() {
   const navigation = useNavigation<NavigationProp>();
   const { theme, styles: globalStyles } = useTheme();
   const isOffline = useIsOffline();
+  const { isAuthenticated } = useAuth();
   const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isAuthError, setIsAuthError] = useState(false);
   const [portfolio, setPortfolio] = useState<ApiPortfolio | null>(null);
   const [isStaleData, setIsStaleData] = useState(false);
   const [cachedAt, setCachedAt] = useState<Date | null>(null);
@@ -109,14 +112,17 @@ export default function PortfolioScreen() {
         setIsStaleData(true);
         setCachedAt(cached.cachedAt);
         setError(null);
+        setIsAuthError(false);
         return;
       }
       setError('Нет подключения к интернету. Кэшированные данные недоступны.');
+      setIsAuthError(false);
       return;
     }
 
     try {
       setError(null);
+      setIsAuthError(false);
       const data = await portfolioApi.getPortfolio();
       setPortfolio(data);
       setIsStaleData(false);
@@ -125,6 +131,12 @@ export default function PortfolioScreen() {
       await cachePortfolio(data);
     } catch (err) {
       const apiError = err as ApiError;
+      // Check if it's an auth error
+      if (apiError.isAuthError || apiError.statusCode === 401) {
+        setIsAuthError(true);
+        setError(null);
+        return;
+      }
       // On error, try to fall back to cached data
       const cached = await getCachedPortfolio();
       if (cached) {
@@ -383,6 +395,10 @@ export default function PortfolioScreen() {
     );
   }, [isOffline]);
 
+  const handleLogin = useCallback(() => {
+    navigation.navigate('Login');
+  }, [navigation]);
+
   const formatCacheTime = (date: Date | null) => {
     if (!date) return '';
     const now = new Date();
@@ -403,6 +419,30 @@ export default function PortfolioScreen() {
         <Text style={[styles.loadingText, { color: theme.colors.textSecondary }]}>
           Загрузка портфеля...
         </Text>
+      </View>
+    );
+  }
+
+  // Show login card if user is not authenticated or there's an auth error
+  if (isAuthError || !isAuthenticated) {
+    return (
+      <View style={[styles.authContainer, { backgroundColor: 'transparent' }]}>
+        <View style={[styles.authCard, { backgroundColor: theme.colors.card, borderColor: theme.colors.cardBorder }]}>
+          <Ionicons name="wallet-outline" size={56} color={theme.colors.accent} />
+          <Text style={[styles.authTitle, { color: theme.colors.textPrimary }]}>
+            Войдите в аккаунт
+          </Text>
+          <Text style={[styles.authDescription, { color: theme.colors.textSecondary }]}>
+            Авторизуйтесь для доступа к портфелю и отслеживания ваших позиций
+          </Text>
+          <TouchableOpacity
+            style={[styles.authButton, { backgroundColor: theme.colors.accent }]}
+            onPress={handleLogin}
+            activeOpacity={0.7}
+          >
+            <Text style={styles.authButtonText}>Войти</Text>
+          </TouchableOpacity>
+        </View>
       </View>
     );
   }
@@ -1028,6 +1068,43 @@ const styles = StyleSheet.create({
   },
   retryButtonText: {
     fontSize: 14,
+    fontWeight: '600',
+  },
+  authContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24,
+  },
+  authCard: {
+    width: '100%',
+    maxWidth: 340,
+    padding: 32,
+    borderRadius: 20,
+    borderWidth: 1,
+    alignItems: 'center',
+  },
+  authTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    marginTop: 16,
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  authDescription: {
+    fontSize: 14,
+    textAlign: 'center',
+    lineHeight: 20,
+    marginBottom: 24,
+  },
+  authButton: {
+    paddingHorizontal: 48,
+    paddingVertical: 14,
+    borderRadius: 12,
+  },
+  authButtonText: {
+    color: '#fff',
+    fontSize: 16,
     fontWeight: '600',
   },
   emptyContainer: {

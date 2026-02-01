@@ -1,8 +1,9 @@
 import React from 'react';
-import { TouchableOpacity, Text } from 'react-native';
+import { TouchableOpacity, Text, View, ActivityIndicator } from 'react-native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { useNavigation } from '@react-navigation/native';
 import { useTheme } from '../theme-context';
+import { useAuth } from '../context/AuthContext';
 import type { RootStackParamList } from './types';
 
 // Navigators
@@ -23,6 +24,7 @@ import RegisterScreen from '../screens/auth/RegisterScreen';
 import SubscriptionScreen from '../screens/auth/SubscriptionScreen';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
+const AuthStack = createNativeStackNavigator();
 
 function CloseButton() {
   const navigation = useNavigation();
@@ -42,7 +44,44 @@ function CloseButton() {
   );
 }
 
-export default function AppNavigator() {
+function AuthNavigator() {
+  const { theme } = useTheme();
+
+  return (
+    <AuthStack.Navigator
+      screenOptions={{
+        headerShown: false,
+        contentStyle: { backgroundColor: 'transparent' },
+        animation: 'slide_from_right',
+      }}
+    >
+      <AuthStack.Screen
+        name="Login"
+        component={LoginScreen}
+        options={{
+          headerShown: true,
+          headerTitle: 'Вход',
+          headerStyle: { backgroundColor: theme.colors.appBackground },
+          headerTintColor: theme.colors.textPrimary,
+          headerShadowVisible: false,
+        }}
+      />
+      <AuthStack.Screen
+        name="Register"
+        component={RegisterScreen}
+        options={{
+          headerShown: true,
+          headerTitle: 'Регистрация',
+          headerStyle: { backgroundColor: theme.colors.appBackground },
+          headerTintColor: theme.colors.textPrimary,
+          headerShadowVisible: false,
+        }}
+      />
+    </AuthStack.Navigator>
+  );
+}
+
+function MainAppNavigator() {
   const { theme } = useTheme();
 
   return (
@@ -184,7 +223,7 @@ export default function AppNavigator() {
         component={SubscriptionScreen}
         options={{
           headerShown: true,
-          headerTitle: 'Subscription',
+          headerTitle: 'Подписка',
           headerStyle: { backgroundColor: theme.colors.appBackground },
           headerTintColor: theme.colors.textPrimary,
           headerShadowVisible: false,
@@ -194,4 +233,26 @@ export default function AppNavigator() {
       />
     </Stack.Navigator>
   );
+}
+
+export default function AppNavigator() {
+  const { theme } = useTheme();
+  const { isAuthenticated, isLoading } = useAuth();
+
+  // Show loading screen while checking auth state
+  if (isLoading) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: theme.colors.appBackground }}>
+        <ActivityIndicator size="large" color={theme.colors.accent} />
+      </View>
+    );
+  }
+
+  // Show auth flow if not authenticated
+  if (!isAuthenticated) {
+    return <AuthNavigator />;
+  }
+
+  // Show main app if authenticated
+  return <MainAppNavigator />;
 }
