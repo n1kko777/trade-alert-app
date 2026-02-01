@@ -555,13 +555,15 @@ const createStyles = (theme: Theme) =>
       backgroundColor: theme.colors.tabBar,
       borderTopColor: theme.colors.tabBarBorder,
       borderTopWidth: 1,
-      minHeight: 64,
-      paddingTop: 6,
-      paddingBottom: 10,
+      height: 80,
+      paddingTop: 8,
+      paddingBottom: 20,
     },
     tabBarLabel: {
       fontFamily: 'SpaceGrotesk_500Medium',
       fontSize: 11,
+      lineHeight: 16,
+      paddingBottom: 2,
     },
     tabBarBadge: {
       backgroundColor: theme.colors.badge,

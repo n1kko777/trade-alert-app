@@ -13,6 +13,7 @@ npm install          # Install dependencies
 npm run start        # Start Expo dev server (interactive platform selection)
 npm run ios          # Run on iOS simulator
 npm run android      # Run on Android emulator/device
+npm run web          # Run in web browser
 ```
 
 No automated tests exist. Background tasks and notifications require real device testing.
@@ -54,3 +55,4 @@ If the setting affects background behavior, also update `src/background/task.ts`
 - **Pruning**: Never break `pruneAlertsList` or `pruneHistoryMap` - they prevent unbounded storage growth
 - **Settings normalization**: Always use `normalizeSettings()` when loading from AsyncStorage to guard against malformed data
 - **Per-symbol overrides**: `resolveSymbolRule(settings, symbol)` merges symbol-specific rules with global defaults
+- **Theme system**: `src/theme.ts` defines light/dark themes; `themeMode` setting controls appearance
