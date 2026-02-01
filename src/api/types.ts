@@ -336,20 +336,26 @@ export interface UpdateAssetRequest {
 // =============================================================================
 
 /**
+ * Structured AI Analysis content
+ */
+export interface StructuredAnalysis {
+  summary: string;
+  sentiment: 'bullish' | 'bearish' | 'neutral';
+  confidence: number;
+  keyPoints: string[];
+  recommendation: string;
+  riskLevel?: 'low' | 'medium' | 'high';
+}
+
+/**
  * AI Analysis result
+ * Note: analysis can be either a raw markdown string or a structured object
  */
 export interface ApiAnalysis {
   symbol: string;
-  analysis: {
-    summary: string;
-    sentiment: 'bullish' | 'bearish' | 'neutral';
-    confidence: number;
-    keyPoints: string[];
-    recommendation: string;
-    riskLevel: 'low' | 'medium' | 'high';
-  };
+  analysis: string | StructuredAnalysis;
   generatedAt: string;
-  tokensUsed: number;
+  tokensUsed?: number;
 }
 
 /**

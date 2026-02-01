@@ -3,6 +3,24 @@ import { View, Text, StyleSheet, TouchableOpacity, Clipboard } from 'react-nativ
 import { useTheme } from '../theme-context';
 import { AnalysisResponse, Recommendation } from '../services/ai/types';
 
+/**
+ * Strip markdown syntax from text for clean display
+ */
+function stripMarkdown(text: string): string {
+  return text
+    .replace(/^#{1,6}\s+/gm, '') // Remove headers
+    .replace(/\*\*([^*]+)\*\*/g, '$1') // Remove bold
+    .replace(/\*([^*]+)\*/g, '$1') // Remove italic
+    .replace(/__([^_]+)__/g, '$1') // Remove bold (underscore)
+    .replace(/_([^_]+)_/g, '$1') // Remove italic (underscore)
+    .replace(/`([^`]+)`/g, '$1') // Remove inline code
+    .replace(/^\s*[-*+]\s+/gm, '• ') // Convert list markers to bullets
+    .replace(/^\s*\d+\.\s+/gm, '') // Remove numbered list markers
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1') // Remove links, keep text
+    .replace(/\n{3,}/g, '\n\n') // Reduce multiple newlines
+    .trim();
+}
+
 interface AnalysisCardProps {
   analysis: AnalysisResponse;
   onCopy?: () => void;
@@ -95,19 +113,21 @@ ${analysis.reasoning}`;
           Резюме
         </Text>
         <Text style={[styles.sectionContent, { color: theme.colors.textSecondary }]}>
-          {analysis.summary}
+          {stripMarkdown(analysis.summary)}
         </Text>
       </View>
 
       {/* Technical Analysis Section */}
-      <View style={styles.section}>
-        <Text style={[styles.sectionTitle, { color: theme.colors.textPrimary }]}>
-          Технический анализ
-        </Text>
-        <Text style={[styles.sectionContent, { color: theme.colors.textSecondary }]}>
-          {analysis.technicalAnalysis}
-        </Text>
-      </View>
+      {analysis.technicalAnalysis && analysis.technicalAnalysis !== analysis.summary && (
+        <View style={styles.section}>
+          <Text style={[styles.sectionTitle, { color: theme.colors.textPrimary }]}>
+            Технический анализ
+          </Text>
+          <Text style={[styles.sectionContent, { color: theme.colors.textSecondary }]} numberOfLines={10}>
+            {stripMarkdown(analysis.technicalAnalysis)}
+          </Text>
+        </View>
+      )}
 
       {/* Key Levels Section */}
       <View style={styles.section}>
@@ -179,8 +199,10 @@ ${analysis.reasoning}`;
         </Text>
       </View>
 
-      {/* Reasoning */}
-      {analysis.reasoning && analysis.reasoning !== analysis.technicalAnalysis && (
+      {/* Reasoning - only show if different from summary/technical */}
+      {analysis.reasoning &&
+       analysis.reasoning !== analysis.technicalAnalysis &&
+       analysis.reasoning !== analysis.summary && (
         <View style={styles.section}>
           <Text style={[styles.sectionTitle, { color: theme.colors.textPrimary }]}>
             Обоснование
@@ -189,7 +211,7 @@ ${analysis.reasoning}`;
             style={[styles.sectionContent, { color: theme.colors.textSecondary }]}
             numberOfLines={5}
           >
-            {analysis.reasoning}
+            {stripMarkdown(analysis.reasoning)}
           </Text>
         </View>
       )}

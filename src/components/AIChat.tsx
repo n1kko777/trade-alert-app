@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { useTheme } from '../theme-context';
 import { ChatMessage } from '../services/ai/types';
+import AnalysisCard from './AnalysisCard';
 
 interface AIChatProps {
   messages: ChatMessage[];
@@ -36,6 +37,15 @@ function MessageBubble({ message, onCopy }: MessageBubbleProps) {
     const date = new Date(timestamp);
     return date.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
   };
+
+  // If message has an analysis attached, render it as a card
+  if (message.analysis && !isUser) {
+    return (
+      <View style={styles.analysisMessageContainer}>
+        <AnalysisCard analysis={message.analysis} onCopy={() => onCopy?.(message.content)} />
+      </View>
+    );
+  }
 
   return (
     <View style={[styles.messageContainer, isUser && styles.userMessageContainer]}>
@@ -225,6 +235,10 @@ const styles = StyleSheet.create({
   messageContainer: {
     marginBottom: 12,
     flexDirection: 'row',
+  },
+  analysisMessageContainer: {
+    marginBottom: 12,
+    width: '100%',
   },
   userMessageContainer: {
     justifyContent: 'flex-end',

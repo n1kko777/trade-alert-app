@@ -5,6 +5,7 @@ export interface ChatMessage {
   role: MessageRole;
   content: string;
   timestamp: number;
+  analysis?: AnalysisResponse; // Optional attached analysis card
 }
 
 export interface AnalysisRequest {

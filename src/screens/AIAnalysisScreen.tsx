@@ -12,7 +12,6 @@ import {
 } from 'react-native';
 import { useTheme } from '../theme-context';
 import AIChat from '../components/AIChat';
-import AnalysisCard from '../components/AnalysisCard';
 import { apiClient, ENDPOINTS } from '../api';
 import type { ChatRequest, ChatResponse, ApiAnalysis, ChatMessage as ApiChatMessage } from '../api/types';
 import type { ChatMessage, AnalysisResponse } from '../services/ai/types';
@@ -39,21 +38,91 @@ function generateId(): string {
   return `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 }
 
+/**
+ * Detect sentiment from analysis text
+ */
+function detectSentiment(text: string): 'BUY' | 'SELL' | 'HOLD' {
+  const lowerText = text.toLowerCase();
+
+  const bullishKeywords = ['bullish', 'uptrend', 'buying opportunity', 'buy', 'long', 'upward', 'breakout', 'rally'];
+  const bearishKeywords = ['bearish', 'downtrend', 'sell', 'short', 'decline', 'drop', 'breakdown', 'falling'];
+
+  let bullishScore = 0;
+  let bearishScore = 0;
+
+  for (const keyword of bullishKeywords) {
+    if (lowerText.includes(keyword)) bullishScore++;
+  }
+  for (const keyword of bearishKeywords) {
+    if (lowerText.includes(keyword)) bearishScore++;
+  }
+
+  if (bullishScore > bearishScore + 1) return 'BUY';
+  if (bearishScore > bullishScore + 1) return 'SELL';
+  return 'HOLD';
+}
+
+/**
+ * Extract price levels from analysis text
+ * Looks for dollar amounts near support/resistance keywords
+ */
+function extractPriceLevels(text: string): { support: number[]; resistance: number[] } {
+  const support: number[] = [];
+  const resistance: number[] = [];
+
+  // Pattern to match prices like $75,500 or $78,000.50 or 75500
+  const pricePattern = /\$?([\d,]+(?:\.\d+)?)/g;
+
+  // Split text into sentences for context analysis
+  const sentences = text.split(/[.!?\n]+/);
+
+  for (const sentence of sentences) {
+    const lowerSentence = sentence.toLowerCase();
+    const prices: number[] = [];
+
+    // Extract all prices from this sentence
+    let match;
+    while ((match = pricePattern.exec(sentence)) !== null) {
+      const priceStr = match[1].replace(/,/g, '');
+      const price = parseFloat(priceStr);
+      // Only consider reasonable crypto prices (> $10 to filter out percentages)
+      if (!isNaN(price) && price > 10) {
+        prices.push(price);
+      }
+    }
+
+    // Categorize prices based on context
+    if (prices.length > 0) {
+      if (lowerSentence.includes('support') || lowerSentence.includes('low') || lowerSentence.includes('floor')) {
+        support.push(...prices);
+      }
+      if (lowerSentence.includes('resistance') || lowerSentence.includes('high') || lowerSentence.includes('ceiling')) {
+        resistance.push(...prices);
+      }
+    }
+  }
+
+  // Remove duplicates and sort
+  const uniqueSupport = [...new Set(support)].sort((a, b) => a - b).slice(0, 3);
+  const uniqueResistance = [...new Set(resistance)].sort((a, b) => b - a).slice(0, 3);
+
+  return { support: uniqueSupport, resistance: uniqueResistance };
+}
+
 export default function AIAnalysisScreen() {
   const { theme } = useTheme();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [inputText, setInputText] = useState('');
   const [isTyping, setIsTyping] = useState(false);
-  const [lastAnalysis, setLastAnalysis] = useState<AnalysisResponse | null>(null);
-  const [showAnalysisCard, setShowAnalysisCard] = useState(false);
   const inputRef = useRef<TextInput>(null);
 
-  const addMessage = useCallback((role: 'user' | 'assistant', content: string) => {
+  const addMessage = useCallback((role: 'user' | 'assistant', content: string, analysis?: AnalysisResponse) => {
     const newMessage: ChatMessage = {
       id: generateId(),
       role,
       content,
       timestamp: Date.now(),
+      analysis,
     };
     setMessages((prev) => [...prev, newMessage]);
     return newMessage;
@@ -66,7 +135,6 @@ export default function AIAnalysisScreen() {
     addMessage('user', text.trim());
     setInputText('');
     setIsTyping(true);
-    setShowAnalysisCard(false);
 
     try {
       // Prepare chat request for backend API (filter to only user/assistant messages)
@@ -100,7 +168,6 @@ export default function AIAnalysisScreen() {
     const prompt = QUICK_PROMPTS[action];
     addMessage('user', prompt);
     setIsTyping(true);
-    setShowAnalysisCard(false);
 
     try {
       // Fetch analysis from backend API (POST method)
@@ -111,26 +178,38 @@ export default function AIAnalysisScreen() {
       if (response.data.success && response.data.data) {
         const apiAnalysis = response.data.data;
 
+        // Handle both structured and raw string analysis responses
+        const analysisContent = typeof apiAnalysis.analysis === 'string'
+          ? apiAnalysis.analysis
+          : apiAnalysis.analysis?.summary || '';
+
+        // Extract support/resistance levels from the analysis text
+        const extractedLevels = extractPriceLevels(analysisContent);
+
         // Map API response to local AnalysisResponse format
         const analysis: AnalysisResponse = {
           symbol: apiAnalysis.symbol,
-          summary: apiAnalysis.analysis.summary,
-          technicalAnalysis: apiAnalysis.analysis.keyPoints.join('\n'),
-          keyLevels: {
-            support: [],
-            resistance: [],
-          },
-          recommendation: apiAnalysis.analysis.sentiment === 'bullish' ? 'BUY' :
-                          apiAnalysis.analysis.sentiment === 'bearish' ? 'SELL' : 'HOLD',
-          confidence: apiAnalysis.analysis.confidence,
-          reasoning: apiAnalysis.analysis.recommendation,
+          summary: analysisContent,
+          technicalAnalysis: typeof apiAnalysis.analysis === 'string'
+            ? analysisContent
+            : (apiAnalysis.analysis?.keyPoints?.join('\n') || ''),
+          keyLevels: extractedLevels,
+          recommendation: typeof apiAnalysis.analysis === 'string'
+            ? detectSentiment(analysisContent)
+            : (apiAnalysis.analysis?.sentiment === 'bullish' ? 'BUY' :
+               apiAnalysis.analysis?.sentiment === 'bearish' ? 'SELL' : 'HOLD'),
+          confidence: typeof apiAnalysis.analysis === 'string'
+            ? 75
+            : (apiAnalysis.analysis?.confidence || 75),
+          reasoning: typeof apiAnalysis.analysis === 'string'
+            ? analysisContent
+            : (apiAnalysis.analysis?.recommendation || ''),
           timestamp: new Date(apiAnalysis.generatedAt).getTime(),
-          rawResponse: apiAnalysis.analysis.summary,
+          rawResponse: analysisContent,
         };
 
-        addMessage('assistant', analysis.rawResponse || analysis.summary);
-        setLastAnalysis(analysis);
-        setShowAnalysisCard(true);
+        // Add message with attached analysis card
+        addMessage('assistant', analysisContent, analysis);
       } else {
         addMessage('assistant', 'Не удалось получить анализ.');
       }
@@ -150,10 +229,6 @@ export default function AIAnalysisScreen() {
     // Clipboard is handled in the component
   }, []);
 
-  const handleCopyAnalysis = useCallback(() => {
-    Alert.alert('Скопировано', 'Анализ скопирован в буфер обмена');
-  }, []);
-
   const clearChat = useCallback(() => {
     Alert.alert(
       'Очистить чат',
@@ -165,8 +240,6 @@ export default function AIAnalysisScreen() {
           style: 'destructive',
           onPress: () => {
             setMessages([]);
-            setLastAnalysis(null);
-            setShowAnalysisCard(false);
           },
         },
       ]
@@ -206,19 +279,6 @@ export default function AIAnalysisScreen() {
           onCopyMessage={handleCopyMessage}
         />
       </View>
-
-      {/* Analysis Card (if available) */}
-      {showAnalysisCard && lastAnalysis && (
-        <ScrollView
-          style={styles.analysisContainer}
-          horizontal
-          showsHorizontalScrollIndicator={false}
-        >
-          <View style={styles.analysisCardWrapper}>
-            <AnalysisCard analysis={lastAnalysis} onCopy={handleCopyAnalysis} />
-          </View>
-        </ScrollView>
-      )}
 
       {/* Quick Actions */}
       <View style={styles.quickActionsContainer}>
@@ -326,14 +386,6 @@ const styles = StyleSheet.create({
   },
   chatContainer: {
     flex: 1,
-  },
-  analysisContainer: {
-    maxHeight: 300,
-    marginBottom: 8,
-  },
-  analysisCardWrapper: {
-    width: 340,
-    paddingHorizontal: 16,
   },
   quickActionsContainer: {
     paddingVertical: 8,
