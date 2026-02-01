@@ -1,6 +1,5 @@
 import { FastifyInstance, FastifyRequest } from 'fastify';
 import fastifyRateLimit, { RateLimitPluginOptions, errorResponseBuilderContext } from '@fastify/rate-limit';
-import { getRedis } from '../config/redis.js';
 import { getLogger } from '../utils/logger.js';
 
 /**
@@ -95,22 +94,12 @@ export function getAuthRateLimitConfig() {
 
 /**
  * Creates Redis store options for distributed rate limiting
- * Falls back to in-memory store if Redis is not available
+ * NOTE: Currently disabled due to Redis client compatibility issues
+ * Falls back to in-memory store
  */
 function getRedisStoreOptions(): Partial<RateLimitPluginOptions> {
-  try {
-    const redis = getRedis();
-    if (redis && redis.isReady) {
-      return {
-        redis,
-      };
-    }
-  } catch {
-    // Redis not available, will use default in-memory store
-    const logger = getLogger();
-    logger.warn('Redis not available for rate limiting, using in-memory store');
-  }
-
+  // Using in-memory store for now - Redis v4 client is not compatible
+  // with @fastify/rate-limit's Redis store (requires ioredis or redis v3)
   return {};
 }
 

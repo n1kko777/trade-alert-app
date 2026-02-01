@@ -1,5 +1,6 @@
 import 'dotenv/config';
 import { loadConfig } from './config/index.js';
+import { initLogger } from './utils/logger.js';
 import { connectDatabase, closeDatabase } from './config/database.js';
 import { connectRedis, closeRedis } from './config/redis.js';
 import { buildApp } from './app.js';
@@ -8,6 +9,9 @@ import { startAllJobs, stopAllJobs } from './jobs/index.js';
 async function main(): Promise<void> {
   // Load and validate configuration
   const config = loadConfig();
+
+  // Initialize logger
+  initLogger();
 
   // Connect to database
   await connectDatabase();
