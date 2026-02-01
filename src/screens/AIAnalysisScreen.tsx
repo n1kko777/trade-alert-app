@@ -70,16 +70,17 @@ function extractPriceLevels(text: string): { support: number[]; resistance: numb
   const support: number[] = [];
   const resistance: number[] = [];
 
-  // Split text into sentences for context analysis
-  const sentences = text.split(/[.!?\n]+/);
+  // Split text into lines (not sentences) to preserve decimal prices
+  // AI responses typically have one point per line
+  const lines = text.split('\n');
 
-  for (const sentence of sentences) {
-    const lowerSentence = sentence.toLowerCase();
+  for (const line of lines) {
+    const lowerLine = line.toLowerCase();
     const prices: number[] = [];
 
-    // Use matchAll to extract all dollar prices from this sentence
+    // Use matchAll to extract all dollar prices from this line
     // Pattern matches $1.50, $78,000.50, $100, etc.
-    const matches = sentence.matchAll(/\$([\d,]+(?:\.\d+)?)/g);
+    const matches = line.matchAll(/\$([\d,]+(?:\.\d+)?)/g);
     for (const match of matches) {
       const priceStr = match[1].replace(/,/g, '');
       const price = parseFloat(priceStr);
@@ -92,15 +93,15 @@ function extractPriceLevels(text: string): { support: number[]; resistance: numb
     // Categorize prices based on context keywords
     if (prices.length > 0) {
       // Support keywords (price floors)
-      if (lowerSentence.includes('support') ||
-          lowerSentence.includes('floor') ||
-          (lowerSentence.includes('low') && !lowerSentence.includes('lower'))) {
+      if (lowerLine.includes('support') ||
+          lowerLine.includes('floor') ||
+          (lowerLine.includes('low') && !lowerLine.includes('lower'))) {
         support.push(...prices);
       }
       // Resistance keywords (price ceilings)
-      if (lowerSentence.includes('resistance') ||
-          lowerSentence.includes('ceiling') ||
-          (lowerSentence.includes('high') && !lowerSentence.includes('higher'))) {
+      if (lowerLine.includes('resistance') ||
+          lowerLine.includes('ceiling') ||
+          (lowerLine.includes('high') && !lowerLine.includes('higher'))) {
         resistance.push(...prices);
       }
     }
