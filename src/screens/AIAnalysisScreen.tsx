@@ -136,7 +136,7 @@ export default function AIAnalysisScreen() {
   }, []);
 
   const handleSendMessage = useCallback(async (text: string) => {
-    if (!text.trim()) return;
+    if (!text.trim() || isTyping) return;
 
     // Add user message
     addMessage('user', text.trim());
@@ -169,9 +169,11 @@ export default function AIAnalysisScreen() {
     } finally {
       setIsTyping(false);
     }
-  }, [messages, addMessage]);
+  }, [messages, addMessage, isTyping]);
 
   const handleQuickAction = useCallback(async (action: QuickAction) => {
+    if (isTyping) return; // Prevent multiple requests
+
     const prompt = QUICK_PROMPTS[action];
     addMessage('user', prompt);
     setIsTyping(true);
@@ -226,7 +228,7 @@ export default function AIAnalysisScreen() {
     } finally {
       setIsTyping(false);
     }
-  }, [addMessage]);
+  }, [addMessage, isTyping]);
 
   const handleSubmit = useCallback(() => {
     handleSendMessage(inputText);
@@ -299,12 +301,19 @@ export default function AIAnalysisScreen() {
               key={action.key}
               style={[
                 styles.quickActionButton,
-                { backgroundColor: theme.colors.card, borderColor: theme.colors.divider },
+                {
+                  backgroundColor: theme.colors.card,
+                  borderColor: theme.colors.divider,
+                  opacity: isTyping ? 0.5 : 1,
+                },
               ]}
               onPress={() => handleQuickAction(action.key)}
               disabled={isTyping}
             >
-              <Text style={[styles.quickActionText, { color: theme.colors.textPrimary }]}>
+              <Text style={[
+                styles.quickActionText,
+                { color: isTyping ? theme.colors.textMuted : theme.colors.textPrimary },
+              ]}>
                 {action.label}
               </Text>
             </TouchableOpacity>
@@ -321,11 +330,12 @@ export default function AIAnalysisScreen() {
             {
               backgroundColor: theme.colors.input,
               color: theme.colors.textPrimary,
+              opacity: isTyping ? 0.6 : 1,
             },
           ]}
           value={inputText}
           onChangeText={setInputText}
-          placeholder="Задайте вопрос о крипто..."
+          placeholder={isTyping ? "GPT печатает ответ..." : "Задайте вопрос о крипто..."}
           placeholderTextColor={theme.colors.textPlaceholder}
           multiline
           maxLength={500}
