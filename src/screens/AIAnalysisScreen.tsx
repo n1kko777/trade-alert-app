@@ -64,14 +64,15 @@ function detectSentiment(text: string): 'BUY' | 'SELL' | 'HOLD' {
 
 /**
  * Extract price levels from analysis text
- * Looks for dollar amounts near support/resistance keywords
+ * Only matches prices with $ sign to avoid false positives
  */
 function extractPriceLevels(text: string): { support: number[]; resistance: number[] } {
   const support: number[] = [];
   const resistance: number[] = [];
 
-  // Pattern to match prices like $75,500 or $78,000.50 or 75500
-  const pricePattern = /\$?([\d,]+(?:\.\d+)?)/g;
+  // Pattern to match ONLY prices with $ sign (e.g., $1.50, $78,000.50)
+  // This avoids matching "24-hour", "1-2%", etc.
+  const pricePattern = /\$([\d,]+(?:\.\d+)?)/g;
 
   // Split text into sentences for context analysis
   const sentences = text.split(/[.!?\n]+/);
@@ -80,23 +81,29 @@ function extractPriceLevels(text: string): { support: number[]; resistance: numb
     const lowerSentence = sentence.toLowerCase();
     const prices: number[] = [];
 
-    // Extract all prices from this sentence
+    // Extract all dollar prices from this sentence
     let match;
     while ((match = pricePattern.exec(sentence)) !== null) {
       const priceStr = match[1].replace(/,/g, '');
       const price = parseFloat(priceStr);
-      // Only consider reasonable crypto prices (> $10 to filter out percentages)
-      if (!isNaN(price) && price > 10) {
+      // Accept any valid price > 0 (no minimum threshold)
+      if (!isNaN(price) && price > 0) {
         prices.push(price);
       }
     }
 
-    // Categorize prices based on context
+    // Categorize prices based on context keywords
     if (prices.length > 0) {
-      if (lowerSentence.includes('support') || lowerSentence.includes('low') || lowerSentence.includes('floor')) {
+      // Support keywords (price floors)
+      if (lowerSentence.includes('support') ||
+          lowerSentence.includes('floor') ||
+          (lowerSentence.includes('low') && !lowerSentence.includes('lower'))) {
         support.push(...prices);
       }
-      if (lowerSentence.includes('resistance') || lowerSentence.includes('high') || lowerSentence.includes('ceiling')) {
+      // Resistance keywords (price ceilings)
+      if (lowerSentence.includes('resistance') ||
+          lowerSentence.includes('ceiling') ||
+          (lowerSentence.includes('high') && !lowerSentence.includes('higher'))) {
         resistance.push(...prices);
       }
     }
