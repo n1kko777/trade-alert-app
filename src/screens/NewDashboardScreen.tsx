@@ -20,6 +20,7 @@ import type { Ticker } from '../services/exchanges/types';
 import type { Signal } from '../services/signals/types';
 import { useAllTickers, useSignals } from '../hooks/useWebSocket';
 import type { TickerData, SignalData } from '../services/websocket';
+import { portfolioApi } from '../api';
 
 // Map WebSocket ticker to local Ticker format
 function mapTickerData(data: TickerData): Ticker {
@@ -83,21 +84,58 @@ interface QuickAccessItem {
 export default function NewDashboardScreen() {
   const { theme, styles: globalStyles } = useTheme();
   const navigation = useNavigation<NavigationProp>();
-  const { isPro } = useAuth();
+  const { isPro, isAuthenticated } = useAuth();
 
   const [refreshing, setRefreshing] = useState(false);
-  const [portfolioBalance] = useState(125432.50);
-  const [portfolioChange] = useState(3.25);
+  const [portfolioBalance, setPortfolioBalance] = useState<number>(0);
+  const [portfolioChange, setPortfolioChange] = useState<number>(0);
+
+  // Fetch portfolio data
+  const fetchPortfolio = useCallback(async () => {
+    if (!isAuthenticated) return;
+    try {
+      const portfolio = await portfolioApi.getPortfolio();
+      setPortfolioBalance(portfolio.totalValue ?? 0);
+      setPortfolioChange(portfolio.totalPnl ?? 0);
+    } catch (err) {
+      // Ignore error - portfolio might not be available without auth
+      console.log('Portfolio fetch error (may require auth):', err);
+    }
+  }, [isAuthenticated]);
+
+  useEffect(() => {
+    fetchPortfolio();
+  }, [fetchPortfolio]);
 
   // Get data from WebSocket hooks
   const { allTickers, isConnected: tickersConnected } = useAllTickers();
   const { signals: signalData, isConnected: signalsConnected } = useSignals();
 
-  // Map WebSocket data to local formats
+  // Known popular cryptocurrencies whitelist
+  const POPULAR_SYMBOLS = [
+    'BTCUSDT', 'ETHUSDT', 'BNBUSDT', 'SOLUSDT', 'XRPUSDT',
+    'DOGEUSDT', 'ADAUSDT', 'AVAXUSDT', 'DOTUSDT', 'MATICUSDT',
+    'LINKUSDT', 'LTCUSDT', 'ATOMUSDT', 'UNIUSDT', 'ETCUSDT',
+    'XLMUSDT', 'APTUSDT', 'NEARUSDT', 'ARBUSDT', 'OPUSDT',
+  ];
+
+  // Map WebSocket data to local formats - filter to only popular coins
   const hotCoins = useMemo(() => {
-    const tickers = Array.from(allTickers.values()).map(mapTickerData);
+    const tickers = Array.from(allTickers.values())
+      .map(mapTickerData)
+      .filter(t =>
+        // Only include popular coins OR coins with reasonable price (> $0.0001)
+        POPULAR_SYMBOLS.includes(t.symbol) || t.price > 0.0001
+      );
+
+    // Sort by volume, prioritizing popular coins
     return tickers
-      .sort((a, b) => b.volume24h - a.volume24h)
+      .sort((a, b) => {
+        const aPopular = POPULAR_SYMBOLS.includes(a.symbol) ? 1 : 0;
+        const bPopular = POPULAR_SYMBOLS.includes(b.symbol) ? 1 : 0;
+        if (aPopular !== bPopular) return bPopular - aPopular;
+        return b.volume24h - a.volume24h;
+      })
       .slice(0, 10);
   }, [allTickers]);
 
@@ -136,11 +174,12 @@ export default function NewDashboardScreen() {
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
+    await fetchPortfolio();
     // WebSocket data refreshes automatically
     setTimeout(() => {
       setRefreshing(false);
     }, 500);
-  }, []);
+  }, [fetchPortfolio]);
 
   const handleCoinPress = useCallback(
     (coin: Ticker) => {
@@ -153,8 +192,9 @@ export default function NewDashboardScreen() {
     (item: QuickAccessItem) => {
       if (item.route === 'AIChat') {
         navigation.navigate('AIChat', {});
-      } else if (item.route === 'Main') {
-        // Navigate to Pumps tab - for now just show alert
+      } else if (item.id === 'pumps') {
+        // Navigate to Pumps tab within Main navigator
+        navigation.navigate('Main', { screen: 'Pumps' });
       } else {
         navigation.navigate(item.route as any);
       }
@@ -164,6 +204,10 @@ export default function NewDashboardScreen() {
 
   const handleUpgrade = useCallback(() => {
     navigation.navigate('Subscription');
+  }, [navigation]);
+
+  const handleLogin = useCallback(() => {
+    navigation.navigate('Login');
   }, [navigation]);
 
   // Market overview data (mock)
@@ -210,18 +254,37 @@ export default function NewDashboardScreen() {
       {/* Header */}
       <View style={styles.header}>
         <Text style={[styles.greeting, { color: theme.colors.textSecondary }]}>
-          С возвращением
+          {isAuthenticated ? 'С возвращением' : 'Добро пожаловать'}
         </Text>
         <Text style={[styles.title, { color: theme.colors.textPrimary }]}>
           Главная
         </Text>
       </View>
 
-      {/* Portfolio Summary */}
-      <PortfolioSummary
-        balance={portfolioBalance}
-        changePct={portfolioChange}
-      />
+      {/* Portfolio Summary or Login Card */}
+      {isAuthenticated ? (
+        <PortfolioSummary
+          balance={portfolioBalance}
+          changePct={portfolioChange}
+        />
+      ) : (
+        <View style={[styles.loginCard, { backgroundColor: theme.colors.card, borderColor: theme.colors.cardBorder }]}>
+          <Ionicons name="person-circle-outline" size={48} color={theme.colors.accent} />
+          <Text style={[styles.loginTitle, { color: theme.colors.textPrimary }]}>
+            Войдите в аккаунт
+          </Text>
+          <Text style={[styles.loginDescription, { color: theme.colors.textSecondary }]}>
+            Авторизуйтесь для доступа к портфолио, сигналам и AI-анализу
+          </Text>
+          <TouchableOpacity
+            style={[styles.loginButton, { backgroundColor: theme.colors.accent }]}
+            onPress={handleLogin}
+            activeOpacity={0.7}
+          >
+            <Text style={styles.loginButtonText}>Войти</Text>
+          </TouchableOpacity>
+        </View>
+      )}
 
       {/* Quick Access */}
       <View style={styles.quickAccessSection}>
@@ -416,5 +479,34 @@ const styles = StyleSheet.create({
   fearGreedLabel: {
     fontSize: 12,
     fontWeight: '500',
+  },
+  loginCard: {
+    padding: 24,
+    borderRadius: 16,
+    borderWidth: 1,
+    alignItems: 'center',
+    marginBottom: 24,
+  },
+  loginTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    marginTop: 12,
+    marginBottom: 8,
+  },
+  loginDescription: {
+    fontSize: 14,
+    textAlign: 'center',
+    marginBottom: 16,
+    lineHeight: 20,
+  },
+  loginButton: {
+    paddingVertical: 12,
+    paddingHorizontal: 32,
+    borderRadius: 8,
+  },
+  loginButtonText: {
+    color: '#fff',
+    fontWeight: 'bold',
+    fontSize: 16,
   },
 });

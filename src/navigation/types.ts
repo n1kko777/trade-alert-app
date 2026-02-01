@@ -13,10 +13,6 @@ export type RootStackParamList = {
   SignalDetail: { signalId: string };
   PortfolioDetail: undefined;
   TradeHistory: undefined;
-  Education: undefined;
-  CourseDetail: { courseId: string };
-  Community: undefined;
-  News: undefined;
   Tools: undefined;
   Profile: undefined;
   Settings: undefined;

@@ -11,7 +11,7 @@ const mockChat = vi.fn();
 vi.mock('./ai.service.js', () => ({
   analyzeSymbol: (...args: unknown[]) => mockAnalyzeSymbol(...args),
   chat: (...args: unknown[]) => mockChat(...args),
-  AI_RATE_LIMITS: { pro: 10, premium: 50, vip: 100 },
+  AI_RATE_LIMITS: { pro: 50, premium: 100, vip: 200 },
 }));
 
 // Mock market service
@@ -429,8 +429,8 @@ describe('AI Controller', () => {
       const body = JSON.parse(response.body);
       expect(body.success).toBe(true);
       expect(body.data.tier).toBe('pro');
-      expect(body.data.limit).toBe(10);
-      expect(body.data.limits).toEqual({ pro: 10, premium: 50, vip: 100 });
+      expect(body.data.limit).toBe(50);
+      expect(body.data.limits).toEqual({ pro: 50, premium: 100, vip: 200 });
     });
 
     it('should require authentication', async () => {
@@ -469,7 +469,7 @@ describe('AI Controller', () => {
       expect(response.statusCode).toBe(200);
       const body = JSON.parse(response.body);
       expect(body.data.tier).toBe('premium');
-      expect(body.data.limit).toBe(50);
+      expect(body.data.limit).toBe(100);
     });
   });
 });

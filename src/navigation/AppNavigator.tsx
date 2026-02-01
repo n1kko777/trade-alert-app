@@ -14,10 +14,6 @@ import OrderBookScreen from '../screens/OrderBookScreen';
 import LiquidationScreen from '../screens/LiquidationScreen';
 import AIAnalysisScreen from '../screens/AIAnalysisScreen';
 import SignalDetailScreen from '../screens/SignalDetailScreen';
-import EducationScreen from '../screens/EducationScreen';
-import CourseDetailScreen from '../screens/CourseDetailScreen';
-import CommunityScreen from '../screens/CommunityScreen';
-import NewsScreen from '../screens/NewsScreen';
 import ToolsScreen from '../screens/ToolsScreen';
 import SettingsScreenNav from '../screens/SettingsScreenNav';
 
@@ -137,54 +133,6 @@ export default function AppNavigator() {
         options={{
           headerShown: true,
           headerTitle: 'Trading Tools',
-          headerStyle: { backgroundColor: theme.colors.appBackground },
-          headerTintColor: theme.colors.textPrimary,
-          headerShadowVisible: false,
-        }}
-      />
-
-      {/* Education */}
-      <Stack.Screen
-        name="Education"
-        component={EducationScreen}
-        options={{
-          headerShown: true,
-          headerTitle: 'Education',
-          headerStyle: { backgroundColor: theme.colors.appBackground },
-          headerTintColor: theme.colors.textPrimary,
-          headerShadowVisible: false,
-        }}
-      />
-      <Stack.Screen
-        name="CourseDetail"
-        component={CourseDetailScreen}
-        options={{
-          headerShown: true,
-          headerTitle: 'Course',
-          headerStyle: { backgroundColor: theme.colors.appBackground },
-          headerTintColor: theme.colors.textPrimary,
-          headerShadowVisible: false,
-        }}
-      />
-
-      {/* Community & News */}
-      <Stack.Screen
-        name="Community"
-        component={CommunityScreen}
-        options={{
-          headerShown: true,
-          headerTitle: 'Community',
-          headerStyle: { backgroundColor: theme.colors.appBackground },
-          headerTintColor: theme.colors.textPrimary,
-          headerShadowVisible: false,
-        }}
-      />
-      <Stack.Screen
-        name="News"
-        component={NewsScreen}
-        options={{
-          headerShown: true,
-          headerTitle: 'News',
           headerStyle: { backgroundColor: theme.colors.appBackground },
           headerTintColor: theme.colors.textPrimary,
           headerShadowVisible: false,

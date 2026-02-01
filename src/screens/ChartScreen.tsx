@@ -73,11 +73,12 @@ export default function ChartScreen() {
   const [isFullscreen, setIsFullscreen] = useState(false);
 
   const fetchData = useCallback(async () => {
+    const fullSymbol = inputSymbol.toUpperCase().endsWith('USDT')
+      ? inputSymbol.toUpperCase()
+      : `${inputSymbol.toUpperCase()}USDT`;
+
     try {
       setError(null);
-      const fullSymbol = inputSymbol.toUpperCase().endsWith('USDT')
-        ? inputSymbol.toUpperCase()
-        : `${inputSymbol.toUpperCase()}USDT`;
       setSymbol(fullSymbol);
 
       // Fetch candles and ticker from backend API in parallel
@@ -93,12 +94,20 @@ export default function ChartScreen() {
 
       setCandles(candlesResponse.data.candles.map(mapApiCandle));
       setTicker(mapApiTicker(tickerResponse.data.ticker));
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Не удалось загрузить данные графика');
+    } catch (err: any) {
+      console.log('Chart fetch error:', err?.response?.status, err?.message, err?.code);
+      // Check for 404 (symbol not found)
+      if (err?.response?.status === 404) {
+        setError(`Символ ${fullSymbol} не найден на ${selectedExchange.toUpperCase()}`);
+      } else if (err?.message?.includes('Network Error') || err?.code === 'ERR_NETWORK') {
+        setError('Ошибка сети. Проверьте подключение к интернету.');
+      } else {
+        setError(err instanceof Error ? err.message : 'Не удалось загрузить данные графика');
+      }
       setCandles([]);
       setTicker(null);
     }
-  }, [inputSymbol, timeframe]);
+  }, [inputSymbol, timeframe, selectedExchange]);
 
   const loadData = useCallback(async () => {
     setLoading(true);

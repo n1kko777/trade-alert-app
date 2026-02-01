@@ -23,6 +23,60 @@ import {
 
 const POPULAR_SYMBOLS = ['BTCUSDT', 'ETHUSDT', 'SOLUSDT', 'XRPUSDT', 'DOGEUSDT'];
 
+// Standard leverage levels for estimation
+const LEVERAGE_LEVELS = [2, 3, 5, 10, 25, 50, 100];
+
+// Estimated volume per leverage level (in USD)
+const ESTIMATED_VOLUME_BY_LEVERAGE: Record<number, number> = {
+  2: 50000000,   // $50M at 2x
+  3: 30000000,   // $30M at 3x
+  5: 20000000,   // $20M at 5x
+  10: 15000000,  // $15M at 10x
+  25: 10000000,  // $10M at 25x
+  50: 5000000,   // $5M at 50x
+  100: 2000000,  // $2M at 100x
+};
+
+/**
+ * Generate estimated liquidation levels based on current price
+ * Long liquidation = price * (1 - 1/leverage) - for longs, price drops this much to liquidate
+ * Short liquidation = price * (1 + 1/leverage) - for shorts, price rises this much to liquidate
+ */
+function generateEstimatedLevels(currentPrice: number): LiquidationLevel[] {
+  const levels: LiquidationLevel[] = [];
+
+  LEVERAGE_LEVELS.forEach(leverage => {
+    const maintenanceMargin = 0.5 / leverage; // Simplified maintenance margin
+    const longLiqPrice = currentPrice * (1 - (1 / leverage) + maintenanceMargin);
+    const shortLiqPrice = currentPrice * (1 + (1 / leverage) - maintenanceMargin);
+    const volume = ESTIMATED_VOLUME_BY_LEVERAGE[leverage] || 1000000;
+
+    // Long liquidation level (below current price)
+    levels.push({
+      price: longLiqPrice,
+      longVolume: volume,
+      shortVolume: 0,
+      totalVolume: volume,
+      leverage,
+      type: 'long',
+      distancePercent: ((currentPrice - longLiqPrice) / currentPrice) * 100,
+    });
+
+    // Short liquidation level (above current price)
+    levels.push({
+      price: shortLiqPrice,
+      longVolume: 0,
+      shortVolume: volume,
+      totalVolume: volume,
+      leverage,
+      type: 'short',
+      distancePercent: ((shortLiqPrice - currentPrice) / currentPrice) * 100,
+    });
+  });
+
+  return levels.sort((a, b) => b.price - a.price);
+}
+
 // Map API response to local data format
 interface LiquidationData {
   symbol: string;
@@ -93,36 +147,52 @@ export default function LiquidationScreen() {
 
       const apiData = response.data;
 
-      if (!apiData || !apiData.levels) {
+      if (!apiData || !Number.isFinite(apiData.currentPrice) || apiData.currentPrice <= 0) {
         throw new Error('Нет данных о ликвидациях');
       }
 
-      // Map API response to local format
-      const levels: LiquidationLevel[] = apiData.levels.map(level => ({
-        price: level.longLiquidation, // Use long liquidation as price
-        longVolume: 1000000 / level.leverage, // Estimate volume based on leverage
-        shortVolume: 1000000 / level.leverage,
-        totalVolume: 2000000 / level.leverage,
-        leverage: level.leverage,
-        type: 'long' as const,
-        distancePercent: ((apiData.currentPrice - level.longLiquidation) / apiData.currentPrice) * 100,
-      }));
+      // Try to map API response to local format
+      let levels: LiquidationLevel[] = [];
 
-      // Add short levels
-      apiData.levels.forEach(level => {
-        levels.push({
-          price: level.shortLiquidation,
-          longVolume: 0,
-          shortVolume: 1000000 / level.leverage,
-          totalVolume: 1000000 / level.leverage,
-          leverage: level.leverage,
-          type: 'short' as const,
-          distancePercent: ((level.shortLiquidation - apiData.currentPrice) / apiData.currentPrice) * 100,
+      if (apiData.levels && Array.isArray(apiData.levels)) {
+        // Add long levels (filter out invalid prices)
+        apiData.levels.forEach(level => {
+          if (Number.isFinite(level.longLiquidation) && level.longLiquidation > 0) {
+            levels.push({
+              price: level.longLiquidation,
+              longVolume: ESTIMATED_VOLUME_BY_LEVERAGE[level.leverage] || 1000000,
+              shortVolume: 0,
+              totalVolume: ESTIMATED_VOLUME_BY_LEVERAGE[level.leverage] || 1000000,
+              leverage: level.leverage,
+              type: 'long' as const,
+              distancePercent: ((apiData.currentPrice - level.longLiquidation) / apiData.currentPrice) * 100,
+            });
+          }
         });
-      });
+
+        // Add short levels (filter out invalid prices)
+        apiData.levels.forEach(level => {
+          if (Number.isFinite(level.shortLiquidation) && level.shortLiquidation > 0) {
+            levels.push({
+              price: level.shortLiquidation,
+              longVolume: 0,
+              shortVolume: ESTIMATED_VOLUME_BY_LEVERAGE[level.leverage] || 1000000,
+              totalVolume: ESTIMATED_VOLUME_BY_LEVERAGE[level.leverage] || 1000000,
+              leverage: level.leverage,
+              type: 'short' as const,
+              distancePercent: ((level.shortLiquidation - apiData.currentPrice) / apiData.currentPrice) * 100,
+            });
+          }
+        });
+      }
+
+      // If no valid levels from API, generate estimated ones
+      if (levels.length === 0) {
+        levels = generateEstimatedLevels(apiData.currentPrice);
+      }
 
       const data: LiquidationData = {
-        symbol: apiData.symbol,
+        symbol: apiData.symbol || fullSymbol,
         exchange: selectedExchange,
         currentPrice: apiData.currentPrice,
         levels: levels.sort((a, b) => b.price - a.price),

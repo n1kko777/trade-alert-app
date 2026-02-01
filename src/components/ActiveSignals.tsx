@@ -98,7 +98,7 @@ function ActiveSignals({ signals, isPro = false, onUpgrade }: ActiveSignalsProps
 export default React.memo(ActiveSignals);
 
 const styles = StyleSheet.create({
-  container: { padding: 16, borderRadius: 12, marginBottom: 16, marginHorizontal: 16 },
+  container: { padding: 16, borderRadius: 12, marginBottom: 16 },
   title: { fontSize: 18, fontWeight: 'bold', marginBottom: 12 },
   proText: { fontSize: 14, marginBottom: 12, textAlign: 'center' },
   upgradeButton: { paddingVertical: 12, paddingHorizontal: 24, borderRadius: 8, alignItems: 'center' },

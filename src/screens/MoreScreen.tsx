@@ -5,7 +5,6 @@ import {
   ScrollView,
   TouchableOpacity,
   StyleSheet,
-  Image,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
@@ -73,32 +72,6 @@ const menuSections: { title: string; items: MenuItem[] }[] = [
         subtitle: 'Калькуляторы и утилиты',
         icon: 'calculator-outline',
         route: 'Tools',
-      },
-    ],
-  },
-  {
-    title: 'Обучение',
-    items: [
-      {
-        id: 'education',
-        title: 'Образование',
-        subtitle: 'Курсы и уроки',
-        icon: 'school-outline',
-        route: 'Education',
-      },
-      {
-        id: 'community',
-        title: 'Сообщество',
-        subtitle: 'Общение с трейдерами',
-        icon: 'people-outline',
-        route: 'Community',
-      },
-      {
-        id: 'news',
-        title: 'Новости',
-        subtitle: 'Криптоновости и обновления',
-        icon: 'newspaper-outline',
-        route: 'News',
       },
     ],
   },

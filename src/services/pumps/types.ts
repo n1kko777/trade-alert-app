@@ -3,7 +3,9 @@
  * Type definitions for pump detection data from the backend
  */
 
-export type ExchangeId = 'binance' | 'bybit' | 'okx' | 'mexc';
+import type { ExchangeId } from '../exchanges/types';
+
+export type { ExchangeId };
 
 export interface PumpEvent {
   id: string;

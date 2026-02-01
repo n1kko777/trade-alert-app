@@ -12,15 +12,15 @@ import { AI_RATE_LIMITS } from './ai.service.js';
 describe('AI Service', () => {
   describe('AI_RATE_LIMITS', () => {
     it('should have correct limits for pro tier', () => {
-      expect(AI_RATE_LIMITS.pro).toBe(10);
+      expect(AI_RATE_LIMITS.pro).toBe(50);
     });
 
     it('should have correct limits for premium tier', () => {
-      expect(AI_RATE_LIMITS.premium).toBe(50);
+      expect(AI_RATE_LIMITS.premium).toBe(100);
     });
 
     it('should have correct limits for vip tier', () => {
-      expect(AI_RATE_LIMITS.vip).toBe(100);
+      expect(AI_RATE_LIMITS.vip).toBe(200);
     });
 
     it('should have increasing limits for higher tiers', () => {

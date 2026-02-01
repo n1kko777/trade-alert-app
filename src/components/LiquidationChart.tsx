@@ -11,7 +11,8 @@ interface LiquidationChartProps {
 }
 
 const CHART_HEIGHT = 24;
-const MIN_BAR_WIDTH = 20;
+const MIN_BAR_WIDTH = 8;
+const MAX_BAR_WIDTH_RATIO = 0.6; // Bar takes max 60% of available space
 
 export default function LiquidationChart({
   levels,
@@ -20,25 +21,31 @@ export default function LiquidationChart({
 }: LiquidationChartProps) {
   const { theme } = useTheme();
 
-  // Separate long and short levels
+  // Separate long and short levels with validation
   const { shortLevels, longLevels, maxVolume } = useMemo(() => {
-    const shorts = levels
+    // Filter out levels with invalid prices
+    const validLevels = (levels || []).filter(
+      l => Number.isFinite(l.price) && l.price > 0
+    );
+
+    const shorts = validLevels
       .filter(l => l.type === 'short')
       .sort((a, b) => a.price - b.price); // Sort ascending by price
-    const longs = levels
+    const longs = validLevels
       .filter(l => l.type === 'long')
       .sort((a, b) => b.price - a.price); // Sort descending by price
 
-    const max = Math.max(...levels.map(l => l.totalVolume), 1);
+    const max = validLevels.length > 0
+      ? Math.max(...validLevels.map(l => l.totalVolume), 1)
+      : 1;
 
     return { shortLevels: shorts, longLevels: longs, maxVolume: max };
   }, [levels]);
 
   const renderLevel = (level: LiquidationLevel, index: number) => {
-    const barWidth = Math.max(
-      (level.totalVolume / maxVolume) * maxWidth,
-      MIN_BAR_WIDTH
-    );
+    // Calculate bar width as percentage of available space (capped at MAX_BAR_WIDTH_RATIO)
+    const volumeRatio = level.totalVolume / maxVolume;
+    const barWidthPercent = Math.max(volumeRatio * MAX_BAR_WIDTH_RATIO * 100, 5); // Min 5%
 
     const isLong = level.type === 'long';
     const barColor = isLong ? theme.colors.success : theme.colors.danger;
@@ -56,19 +63,21 @@ export default function LiquidationChart({
           </Text>
         </View>
 
-        {/* Bar */}
+        {/* Bar and Volume container */}
         <View style={styles.barContainer}>
-          <View
-            style={[
-              styles.bar,
-              {
-                width: barWidth,
-                backgroundColor: barColor,
-                opacity: 0.8,
-              },
-            ]}
-          >
-            <Text style={styles.barVolumeText}>
+          <View style={styles.barRow}>
+            {/* Bar (proportional width) */}
+            <View
+              style={[
+                styles.bar,
+                {
+                  width: `${barWidthPercent}%`,
+                  backgroundColor: barColor,
+                },
+              ]}
+            />
+            {/* Volume text (outside bar) */}
+            <Text style={[styles.volumeText, { color: theme.colors.textSecondary }]}>
               {formatVolume(level.totalVolume)}
             </Text>
           </View>
@@ -77,7 +86,7 @@ export default function LiquidationChart({
         {/* Distance */}
         <View style={styles.distanceColumn}>
           <Text style={[styles.distanceText, { color: textColor }]}>
-            {isLong ? '-' : '+'}{level.distancePercent.toFixed(1)}%
+            {isLong ? '-' : '+'}{Number.isFinite(level.distancePercent) ? level.distancePercent.toFixed(1) : '—'}%
           </Text>
         </View>
       </View>
@@ -102,23 +111,25 @@ export default function LiquidationChart({
       )}
 
       {/* Current price indicator */}
-      <View style={[styles.currentPriceRow, { backgroundColor: theme.colors.metricCard }]}>
-        <View style={styles.priceColumn}>
-          <Text style={[styles.currentPriceLabel, { color: theme.colors.textMuted }]}>
-            Текущая
-          </Text>
-        </View>
-        <View style={styles.currentPriceCenter}>
-          <View style={[styles.priceLine, { backgroundColor: theme.colors.accent }]} />
-          <View style={[styles.priceIndicator, { backgroundColor: theme.colors.accent }]}>
-            <Text style={[styles.currentPriceText, { color: theme.colors.buttonText }]}>
-              {formatPrice(currentPrice)}
+      {Number.isFinite(currentPrice) && currentPrice > 0 && (
+        <View style={[styles.currentPriceRow, { backgroundColor: theme.colors.metricCard }]}>
+          <View style={styles.priceColumn}>
+            <Text style={[styles.currentPriceLabel, { color: theme.colors.textMuted }]}>
+              Текущая
             </Text>
           </View>
-          <View style={[styles.priceLine, { backgroundColor: theme.colors.accent }]} />
+          <View style={styles.currentPriceCenter}>
+            <View style={[styles.priceLine, { backgroundColor: theme.colors.accent }]} />
+            <View style={[styles.priceIndicator, { backgroundColor: theme.colors.accent }]}>
+              <Text style={[styles.currentPriceText, { color: theme.colors.buttonText }]}>
+                {formatPrice(currentPrice)}
+              </Text>
+            </View>
+            <View style={[styles.priceLine, { backgroundColor: theme.colors.accent }]} />
+          </View>
+          <View style={styles.distanceColumn} />
         </View>
-        <View style={styles.distanceColumn} />
-      </View>
+      )}
 
       {/* Long liquidations (below current price) */}
       {longLevels.length > 0 && (
@@ -180,22 +191,27 @@ const styles = StyleSheet.create({
   },
   barContainer: {
     flex: 1,
+    justifyContent: 'center',
+  },
+  barRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    height: CHART_HEIGHT,
   },
   bar: {
-    height: CHART_HEIGHT,
+    height: CHART_HEIGHT - 4,
     borderRadius: 4,
-    justifyContent: 'center',
-    paddingHorizontal: 6,
+    opacity: 0.8,
   },
-  barVolumeText: {
-    color: '#FFFFFF',
+  volumeText: {
     fontSize: 10,
-    fontWeight: 'bold',
+    fontWeight: '600',
+    marginLeft: 6,
   },
   distanceColumn: {
-    width: 50,
+    width: 55,
     alignItems: 'flex-end',
-    paddingLeft: 8,
+    marginLeft: 8,
   },
   distanceText: {
     fontSize: 11,

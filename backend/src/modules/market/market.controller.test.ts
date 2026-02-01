@@ -55,7 +55,6 @@ const mockCandles: Candle[] = [
 
 describe('Market Controller', () => {
   let app: FastifyInstance;
-  let accessToken: string;
 
   beforeEach(async () => {
     vi.clearAllMocks();
@@ -65,14 +64,6 @@ describe('Market Controller', () => {
     await app.register(fastifyJwt, { secret: 'test-secret' });
     await app.register(marketRoutes);
     await app.ready();
-
-    // Generate a test access token
-    accessToken = app.jwt.sign({
-      userId: 'test-user-id',
-      email: 'test@example.com',
-      subscription: 'pro',
-      type: 'access',
-    });
   });
 
   afterEach(async () => {
@@ -80,22 +71,12 @@ describe('Market Controller', () => {
   });
 
   describe('GET /api/v1/market/tickers', () => {
-    it('should return 401 without authentication', async () => {
-      const response = await app.inject({
-        method: 'GET',
-        url: '/api/v1/market/tickers',
-      });
-
-      expect(response.statusCode).toBe(401);
-    });
-
-    it('should return all tickers from cache', async () => {
+    it('should return all tickers from cache (public endpoint)', async () => {
       mockGetTickers.mockResolvedValue([mockTicker]);
 
       const response = await app.inject({
         method: 'GET',
         url: '/api/v1/market/tickers',
-        headers: { authorization: `Bearer ${accessToken}` },
       });
 
       expect(response.statusCode).toBe(200);
@@ -111,7 +92,6 @@ describe('Market Controller', () => {
       const response = await app.inject({
         method: 'GET',
         url: '/api/v1/market/tickers',
-        headers: { authorization: `Bearer ${accessToken}` },
       });
 
       expect(response.statusCode).toBe(200);
@@ -121,22 +101,12 @@ describe('Market Controller', () => {
   });
 
   describe('GET /api/v1/market/ticker/:symbol', () => {
-    it('should return 401 without authentication', async () => {
-      const response = await app.inject({
-        method: 'GET',
-        url: '/api/v1/market/ticker/BTCUSDT',
-      });
-
-      expect(response.statusCode).toBe(401);
-    });
-
-    it('should return ticker for valid symbol', async () => {
+    it('should return ticker for valid symbol (public endpoint)', async () => {
       mockGetTicker.mockResolvedValue(mockTicker);
 
       const response = await app.inject({
         method: 'GET',
         url: '/api/v1/market/ticker/BTCUSDT',
-        headers: { authorization: `Bearer ${accessToken}` },
       });
 
       expect(response.statusCode).toBe(200);
@@ -152,7 +122,6 @@ describe('Market Controller', () => {
       const response = await app.inject({
         method: 'GET',
         url: '/api/v1/market/ticker/UNKNOWNUSDT',
-        headers: { authorization: `Bearer ${accessToken}` },
       });
 
       expect(response.statusCode).toBe(404);
@@ -162,7 +131,6 @@ describe('Market Controller', () => {
       const response = await app.inject({
         method: 'GET',
         url: '/api/v1/market/ticker/ab',
-        headers: { authorization: `Bearer ${accessToken}` },
       });
 
       expect(response.statusCode).toBe(400);
@@ -170,22 +138,12 @@ describe('Market Controller', () => {
   });
 
   describe('GET /api/v1/market/orderbook/:symbol', () => {
-    it('should return 401 without authentication', async () => {
-      const response = await app.inject({
-        method: 'GET',
-        url: '/api/v1/market/orderbook/BTCUSDT',
-      });
-
-      expect(response.statusCode).toBe(401);
-    });
-
-    it('should return orderbook from service', async () => {
+    it('should return orderbook from service (public endpoint)', async () => {
       mockGetOrderBook.mockResolvedValue(mockOrderBook);
 
       const response = await app.inject({
         method: 'GET',
         url: '/api/v1/market/orderbook/BTCUSDT?exchange=binance',
-        headers: { authorization: `Bearer ${accessToken}` },
       });
 
       expect(response.statusCode).toBe(200);
@@ -202,7 +160,6 @@ describe('Market Controller', () => {
       const response = await app.inject({
         method: 'GET',
         url: '/api/v1/market/orderbook/BTCUSDT',
-        headers: { authorization: `Bearer ${accessToken}` },
       });
 
       expect(response.statusCode).toBe(200);
@@ -213,7 +170,6 @@ describe('Market Controller', () => {
       const response = await app.inject({
         method: 'GET',
         url: '/api/v1/market/orderbook/BTCUSDT?exchange=invalid',
-        headers: { authorization: `Bearer ${accessToken}` },
       });
 
       expect(response.statusCode).toBe(400);
@@ -225,7 +181,6 @@ describe('Market Controller', () => {
       const response = await app.inject({
         method: 'GET',
         url: '/api/v1/market/orderbook/BTCUSDT?exchange=binance&depth=50',
-        headers: { authorization: `Bearer ${accessToken}` },
       });
 
       expect(response.statusCode).toBe(200);
@@ -238,7 +193,6 @@ describe('Market Controller', () => {
       const response = await app.inject({
         method: 'GET',
         url: '/api/v1/market/orderbook/BTCUSDT',
-        headers: { authorization: `Bearer ${accessToken}` },
       });
 
       expect(response.statusCode).toBe(404);
@@ -246,22 +200,12 @@ describe('Market Controller', () => {
   });
 
   describe('GET /api/v1/market/candles/:symbol', () => {
-    it('should return 401 without authentication', async () => {
-      const response = await app.inject({
-        method: 'GET',
-        url: '/api/v1/market/candles/BTCUSDT',
-      });
-
-      expect(response.statusCode).toBe(401);
-    });
-
-    it('should return candles from service', async () => {
+    it('should return candles from service (public endpoint)', async () => {
       mockGetCandles.mockResolvedValue(mockCandles);
 
       const response = await app.inject({
         method: 'GET',
         url: '/api/v1/market/candles/BTCUSDT?exchange=binance&interval=1h',
-        headers: { authorization: `Bearer ${accessToken}` },
       });
 
       expect(response.statusCode).toBe(200);
@@ -277,7 +221,6 @@ describe('Market Controller', () => {
       const response = await app.inject({
         method: 'GET',
         url: '/api/v1/market/candles/BTCUSDT',
-        headers: { authorization: `Bearer ${accessToken}` },
       });
 
       expect(response.statusCode).toBe(200);
@@ -288,7 +231,6 @@ describe('Market Controller', () => {
       const response = await app.inject({
         method: 'GET',
         url: '/api/v1/market/candles/BTCUSDT?interval=invalid',
-        headers: { authorization: `Bearer ${accessToken}` },
       });
 
       expect(response.statusCode).toBe(400);
@@ -298,7 +240,6 @@ describe('Market Controller', () => {
       const response = await app.inject({
         method: 'GET',
         url: '/api/v1/market/candles/BTCUSDT?limit=2000',
-        headers: { authorization: `Bearer ${accessToken}` },
       });
 
       expect(response.statusCode).toBe(400);
@@ -310,7 +251,6 @@ describe('Market Controller', () => {
       const response = await app.inject({
         method: 'GET',
         url: '/api/v1/market/candles/BTCUSDT?limit=50',
-        headers: { authorization: `Bearer ${accessToken}` },
       });
 
       expect(response.statusCode).toBe(200);
@@ -323,7 +263,6 @@ describe('Market Controller', () => {
       const response = await app.inject({
         method: 'GET',
         url: '/api/v1/market/candles/BTCUSDT',
-        headers: { authorization: `Bearer ${accessToken}` },
       });
 
       expect(response.statusCode).toBe(404);
@@ -346,22 +285,12 @@ describe('Market Controller', () => {
       updatedAt: Date.now(),
     };
 
-    it('should return 401 without authentication', async () => {
-      const response = await app.inject({
-        method: 'GET',
-        url: '/api/v1/market/liquidations/BTCUSDT',
-      });
-
-      expect(response.statusCode).toBe(401);
-    });
-
-    it('should return liquidation map when data is available', async () => {
+    it('should return liquidation map when data is available (public endpoint)', async () => {
       mockGetLiquidationMap.mockResolvedValue(mockLiquidationMap);
 
       const response = await app.inject({
         method: 'GET',
         url: '/api/v1/market/liquidations/BTCUSDT',
-        headers: { authorization: `Bearer ${accessToken}` },
       });
 
       expect(response.statusCode).toBe(200);
@@ -382,7 +311,6 @@ describe('Market Controller', () => {
       const response = await app.inject({
         method: 'GET',
         url: '/api/v1/market/liquidations/UNKNOWNUSDT',
-        headers: { authorization: `Bearer ${accessToken}` },
       });
 
       expect(response.statusCode).toBe(404);
@@ -392,7 +320,6 @@ describe('Market Controller', () => {
       const response = await app.inject({
         method: 'GET',
         url: '/api/v1/market/liquidations/ab',
-        headers: { authorization: `Bearer ${accessToken}` },
       });
 
       expect(response.statusCode).toBe(400);
@@ -404,30 +331,9 @@ describe('Market Controller', () => {
       await app.inject({
         method: 'GET',
         url: '/api/v1/market/liquidations/btcusdt',
-        headers: { authorization: `Bearer ${accessToken}` },
       });
 
       expect(mockGetLiquidationMap).toHaveBeenCalledWith('BTCUSDT');
-    });
-  });
-
-  describe('Tier-based access control', () => {
-    it('should allow free tier access to tickers', async () => {
-      const freeToken = app.jwt.sign({
-        userId: 'test-user-id',
-        email: 'test@example.com',
-        subscription: 'free',
-        type: 'access',
-      });
-      mockGetTickers.mockResolvedValue([mockTicker]);
-
-      const response = await app.inject({
-        method: 'GET',
-        url: '/api/v1/market/tickers',
-        headers: { authorization: `Bearer ${freeToken}` },
-      });
-
-      expect(response.statusCode).toBe(200);
     });
   });
 });

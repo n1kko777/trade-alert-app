@@ -10,14 +10,14 @@ declare const __DEV__: boolean;
  * API Base URLs
  */
 export const API_BASE_URL = __DEV__
-  ? 'http://localhost:3000/api/v1'
+  ? 'http://127.0.0.1:3000/api/v1'
   : 'https://api.tradepulse.app/api/v1';
 
 /**
  * WebSocket URLs
  */
 export const WS_BASE_URL = __DEV__
-  ? 'ws://localhost:3000'
+  ? 'ws://127.0.0.1:3000'
   : 'wss://api.tradepulse.app';
 
 /**

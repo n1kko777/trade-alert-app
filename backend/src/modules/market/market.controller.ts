@@ -1,7 +1,7 @@
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { z } from 'zod';
 import * as marketService from './market.service.js';
-import { authenticate, requireTier } from '../../middleware/auth.middleware.js';
+// Market endpoints are public - no authentication required
 import { NotFoundError, ValidationError } from '../../utils/errors.js';
 import type { ExchangeId } from './exchanges/base.exchange.js';
 
@@ -197,38 +197,33 @@ export async function getLiquidationsHandler(
  * Register all market data routes
  */
 export async function marketController(fastify: FastifyInstance) {
-  // GET /api/v1/market/tickers - All tickers
+  // GET /api/v1/market/tickers - All tickers (public)
   fastify.get(
     '/api/v1/market/tickers',
-    { preHandler: [authenticate, requireTier('free')] },
     getTickersHandler
   );
 
-  // GET /api/v1/market/ticker/:symbol - Single ticker
+  // GET /api/v1/market/ticker/:symbol - Single ticker (public)
   fastify.get<{ Params: SymbolParams }>(
     '/api/v1/market/ticker/:symbol',
-    { preHandler: [authenticate, requireTier('free')] },
     getTickerHandler
   );
 
-  // GET /api/v1/market/orderbook/:symbol - Order book
+  // GET /api/v1/market/orderbook/:symbol - Order book (public)
   fastify.get<{ Params: SymbolParams; Querystring: OrderBookQuery }>(
     '/api/v1/market/orderbook/:symbol',
-    { preHandler: [authenticate, requireTier('free')] },
     getOrderBookHandler
   );
 
-  // GET /api/v1/market/candles/:symbol - Candles/klines
+  // GET /api/v1/market/candles/:symbol - Candles/klines (public)
   fastify.get<{ Params: SymbolParams; Querystring: CandlesQuery }>(
     '/api/v1/market/candles/:symbol',
-    { preHandler: [authenticate, requireTier('free')] },
     getCandlesHandler
   );
 
-  // GET /api/v1/market/liquidations/:symbol - Liquidations
+  // GET /api/v1/market/liquidations/:symbol - Liquidations (public)
   fastify.get<{ Params: SymbolParams }>(
     '/api/v1/market/liquidations/:symbol',
-    { preHandler: [authenticate, requireTier('free')] },
     getLiquidationsHandler
   );
 }
