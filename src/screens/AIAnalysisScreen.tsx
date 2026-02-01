@@ -103,8 +103,8 @@ export default function AIAnalysisScreen() {
     setShowAnalysisCard(false);
 
     try {
-      // Fetch analysis from backend API
-      const response = await apiClient.get<{ success: boolean; data: ApiAnalysis }>(
+      // Fetch analysis from backend API (POST method)
+      const response = await apiClient.post<{ success: boolean; data: ApiAnalysis }>(
         ENDPOINTS.ai.analyze(`${action}USDT`)
       );
 

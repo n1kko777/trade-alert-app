@@ -24,7 +24,7 @@ interface AnalyzeResponse {
  * Analyze a symbol using AI
  */
 export async function analyzeSymbol(symbol: string): Promise<ApiAnalysis> {
-  const response = await apiClient.get<AnalyzeResponse>(
+  const response = await apiClient.post<AnalyzeResponse>(
     ENDPOINTS.ai.analyze(symbol)
   );
   return response.data.data;
