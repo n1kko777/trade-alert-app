@@ -105,7 +105,7 @@ export default function AIAnalysisScreen() {
     try {
       // Fetch analysis from backend API
       const response = await apiClient.get<{ success: boolean; data: ApiAnalysis }>(
-        `${ENDPOINTS.ai.analyze}/${action}USDT`
+        ENDPOINTS.ai.analyze(`${action}USDT`)
       );
 
       if (response.data.success && response.data.data) {
