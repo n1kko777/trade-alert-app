@@ -12,10 +12,12 @@ import {
   Alert,
   Linking,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useTheme } from '../../theme-context';
 import { useAuth } from '../../context/AuthContext';
+import { useGoogleAuth } from '../../hooks/useGoogleAuth';
 import { Theme } from '../../theme';
 import type { RootStackParamList } from '../../navigation/types';
 
@@ -28,7 +30,8 @@ const RegisterScreen: React.FC = () => {
     navigation.replace('Login');
   }, [navigation]);
   const { theme } = useTheme();
-  const { register, isLoading } = useAuth();
+  const { register, loginWithGoogle, isLoading } = useAuth();
+  const { signIn: googleSignIn, isLoading: isGoogleLoading } = useGoogleAuth();
   const styles = createStyles(theme);
 
   const [name, setName] = useState('');
@@ -101,6 +104,21 @@ const RegisterScreen: React.FC = () => {
   const handlePrivacyPress = useCallback(() => {
     Linking.openURL('https://tradealert.ru/privacy');
   }, []);
+
+  const handleGoogleSignUp = useCallback(async () => {
+    try {
+      const idToken = await googleSignIn();
+      if (idToken) {
+        await loginWithGoogle(idToken);
+        navigation.goBack();
+      }
+    } catch (error) {
+      Alert.alert(
+        'Ошибка',
+        error instanceof Error ? error.message : 'Не удалось войти через Google'
+      );
+    }
+  }, [googleSignIn, loginWithGoogle, navigation]);
 
   return (
     <KeyboardAvoidingView
@@ -217,10 +235,31 @@ const RegisterScreen: React.FC = () => {
           </TouchableOpacity>
         </View>
 
+        {/* Divider */}
+        <View style={styles.dividerContainer}>
+          <View style={styles.divider} />
+          <Text style={styles.dividerText}>или</Text>
+          <View style={styles.divider} />
+        </View>
+
+        {/* Google Sign Up */}
+        <TouchableOpacity
+          style={styles.googleButton}
+          onPress={handleGoogleSignUp}
+          disabled={isLoading || isGoogleLoading}
+        >
+          {isGoogleLoading ? (
+            <ActivityIndicator size="small" color={theme.colors.textPrimary} style={styles.googleIcon} />
+          ) : (
+            <Ionicons name="logo-google" size={20} color={theme.colors.textPrimary} style={styles.googleIcon} />
+          )}
+          <Text style={styles.googleButtonText}>Продолжить с Google</Text>
+        </TouchableOpacity>
+
         {/* Login Link */}
         <View style={styles.loginContainer}>
           <Text style={styles.loginText}>Уже есть аккаунт? </Text>
-          <TouchableOpacity onPress={onNavigateToLogin} disabled={isLoading}>
+          <TouchableOpacity onPress={onNavigateToLogin} disabled={isLoading || isGoogleLoading}>
             <Text style={styles.loginLink}>Войти</Text>
           </TouchableOpacity>
         </View>
@@ -342,6 +381,41 @@ const createStyles = (theme: Theme) =>
       fontFamily: 'SpaceGrotesk_700Bold',
       fontSize: 14,
       color: theme.colors.accent,
+    },
+    dividerContainer: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginBottom: 24,
+    },
+    divider: {
+      flex: 1,
+      height: 1,
+      backgroundColor: theme.colors.divider,
+    },
+    dividerText: {
+      fontFamily: 'SpaceGrotesk_400Regular',
+      fontSize: 14,
+      color: theme.colors.textMuted,
+      marginHorizontal: 16,
+    },
+    googleButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: theme.colors.card,
+      borderRadius: 14,
+      paddingVertical: 16,
+      borderWidth: 1,
+      borderColor: theme.colors.cardBorder,
+      marginBottom: 24,
+    },
+    googleIcon: {
+      marginRight: 8,
+    },
+    googleButtonText: {
+      fontFamily: 'SpaceGrotesk_500Medium',
+      fontSize: 16,
+      color: theme.colors.textPrimary,
     },
   });
 

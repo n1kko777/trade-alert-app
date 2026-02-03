@@ -88,6 +88,13 @@ export interface LoginRequest {
 }
 
 /**
+ * Google OAuth login request
+ */
+export interface GoogleAuthRequest {
+  idToken: string;
+}
+
+/**
  * Login response
  */
 export interface LoginResponse {

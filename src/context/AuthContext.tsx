@@ -27,6 +27,7 @@ import {
   getCurrentUser,
   verify2FA,
   upgradeSubscription as apiUpgradeSubscription,
+  googleLogin as apiGoogleLogin,
 } from '../api/auth.api';
 import type { ApiUser, LoginResponse } from '../api/types';
 
@@ -61,6 +62,7 @@ interface TwoFAState {
 
 interface AuthContextValue extends AuthState {
   login: (credentials: LoginCredentials) => Promise<void>;
+  loginWithGoogle: (idToken: string) => Promise<void>;
   logout: () => Promise<void>;
   register: (credentials: RegisterCredentials) => Promise<void>;
   upgradeSubscription: (tier: SubscriptionTier) => Promise<void>;
@@ -180,6 +182,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         email: credentials.email,
         password: credentials.password,
       });
+      await handleLoginResponse(response);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [handleLoginResponse]);
+
+  const loginWithGoogle = useCallback(async (idToken: string) => {
+    setIsLoading(true);
+    try {
+      const response = await apiGoogleLogin({ idToken });
       await handleLoginResponse(response);
     } finally {
       setIsLoading(false);
@@ -328,6 +340,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       isAuthenticated: user !== null,
       isLoading,
       login,
+      loginWithGoogle,
       logout,
       register,
       upgradeSubscription,
@@ -343,6 +356,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       user,
       isLoading,
       login,
+      loginWithGoogle,
       logout,
       register,
       upgradeSubscription,

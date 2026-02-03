@@ -14,6 +14,7 @@ import {
   RefreshResponse,
   TwoFASetupResponse,
   ApiUser,
+  GoogleAuthRequest,
 } from './types';
 
 /**
@@ -23,6 +24,17 @@ export async function login(credentials: LoginRequest): Promise<LoginResponse> {
   const response = await apiClient.post<LoginResponse>(
     ENDPOINTS.auth.login,
     credentials
+  );
+  return response.data;
+}
+
+/**
+ * Login with Google OAuth
+ */
+export async function googleLogin(request: GoogleAuthRequest): Promise<LoginResponse> {
+  const response = await apiClient.post<LoginResponse>(
+    ENDPOINTS.auth.google,
+    request
   );
   return response.data;
 }
@@ -148,6 +160,7 @@ export async function cancelSubscription(): Promise<{ success: boolean; message:
 // Export all functions as named exports
 export const authApi = {
   login,
+  googleLogin,
   register,
   logout,
   refreshTokens,

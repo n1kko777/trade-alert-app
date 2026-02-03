@@ -11,14 +11,14 @@ declare const __DEV__: boolean;
  */
 export const API_BASE_URL = __DEV__
   ? 'http://127.0.0.1:3000/api/v1'
-  : 'https://api.tradepulse.app/api/v1';
+  : 'https://api.tradealert.ru/api/v1';
 
 /**
  * WebSocket URLs
  */
 export const WS_BASE_URL = __DEV__
   ? 'ws://127.0.0.1:3000'
-  : 'wss://api.tradepulse.app';
+  : 'wss://api.tradealert.ru';
 
 /**
  * API Timeout (in milliseconds)
@@ -34,6 +34,7 @@ export const ENDPOINTS = {
   auth: {
     register: '/auth/register',
     login: '/auth/login',
+    google: '/auth/google',
     logout: '/auth/logout',
     refresh: '/auth/refresh',
     setup2FA: '/auth/2fa/setup',

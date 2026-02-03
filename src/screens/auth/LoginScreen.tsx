@@ -17,6 +17,7 @@ import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useTheme } from '../../theme-context';
 import { useAuth } from '../../context/AuthContext';
+import { useGoogleAuth } from '../../hooks/useGoogleAuth';
 import { Theme } from '../../theme';
 import type { RootStackParamList } from '../../navigation/types';
 
@@ -25,7 +26,8 @@ type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 const LoginScreen: React.FC = () => {
   const navigation = useNavigation<NavigationProp>();
   const { theme } = useTheme();
-  const { login, isLoading } = useAuth();
+  const { login, loginWithGoogle, isLoading } = useAuth();
+  const { signIn: googleSignIn, isLoading: isGoogleLoading } = useGoogleAuth();
   const styles = createStyles(theme);
 
   const [email, setEmail] = useState('');
@@ -103,12 +105,25 @@ const LoginScreen: React.FC = () => {
     }
   };
 
-  const handleSocialLogin = useCallback((provider: 'google' | 'apple') => {
-    const providerName = provider === 'google' ? 'Google' : 'Apple';
+  const handleGoogleLogin = useCallback(async () => {
+    try {
+      const idToken = await googleSignIn();
+      if (idToken) {
+        await loginWithGoogle(idToken);
+        navigation.goBack();
+      }
+    } catch (error) {
+      Alert.alert(
+        'Ошибка входа',
+        error instanceof Error ? error.message : 'Не удалось войти через Google'
+      );
+    }
+  }, [googleSignIn, loginWithGoogle, navigation]);
 
+  const handleAppleLogin = useCallback(() => {
     Alert.alert(
-      `Вход через ${providerName}`,
-      `Авторизация через ${providerName} будет доступна в следующем обновлении.\n\nПока вы можете войти с помощью email и пароля или создать новый аккаунт.`,
+      'Вход через Apple',
+      'Авторизация через Apple будет доступна в следующем обновлении.\n\nПока вы можете войти с помощью email и пароля или Google.',
       [
         { text: 'OK', style: 'cancel' },
         {
@@ -201,18 +216,22 @@ const LoginScreen: React.FC = () => {
         <View style={styles.socialContainer}>
           <TouchableOpacity
             style={styles.socialButton}
-            onPress={() => handleSocialLogin('google')}
-            disabled={isLoading || isResetting}
+            onPress={handleGoogleLogin}
+            disabled={isLoading || isGoogleLoading || isResetting}
           >
-            <Ionicons name="logo-google" size={20} color={theme.colors.textPrimary} style={styles.socialIconStyle} />
+            {isGoogleLoading ? (
+              <ActivityIndicator size="small" color={theme.colors.textPrimary} style={styles.socialIconStyle} />
+            ) : (
+              <Ionicons name="logo-google" size={20} color={theme.colors.textPrimary} style={styles.socialIconStyle} />
+            )}
             <Text style={styles.socialButtonText}>Google</Text>
           </TouchableOpacity>
 
           {Platform.OS === 'ios' && (
             <TouchableOpacity
               style={styles.socialButton}
-              onPress={() => handleSocialLogin('apple')}
-              disabled={isLoading || isResetting}
+              onPress={handleAppleLogin}
+              disabled={isLoading || isGoogleLoading || isResetting}
             >
               <Ionicons name="logo-apple" size={20} color={theme.colors.textPrimary} style={styles.socialIconStyle} />
               <Text style={styles.socialButtonText}>Apple</Text>
