@@ -34,7 +34,7 @@
     },
     "android": {
       "package": "com.niktar.tradepulsealerts",
-      "versionCode": 1,
+      "versionCode": 3,
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#0a0e17"
@@ -67,6 +67,6 @@
         "projectId": "c001661f-49f3-412e-a591-7342c66e6972"
       }
     },
-    "owner": "niktar"
+    "owner": "n1kko777"
   }
 }
