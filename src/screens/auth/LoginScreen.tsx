@@ -5,8 +5,6 @@ import {
   TextInput,
   TouchableOpacity,
   StyleSheet,
-  KeyboardAvoidingView,
-  Platform,
   ScrollView,
   ActivityIndicator,
   Alert,
@@ -120,14 +118,11 @@ const LoginScreen: React.FC = () => {
   }, [googleSignIn, loginWithGoogle, navigation]);
 
   return (
-    <KeyboardAvoidingView
+    <ScrollView
       style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      contentContainerStyle={styles.scrollContent}
+      keyboardShouldPersistTaps="handled"
     >
-      <ScrollView
-        contentContainerStyle={styles.scrollContent}
-        keyboardShouldPersistTaps="handled"
-      >
         {/* Logo Placeholder */}
         <View style={styles.logoContainer}>
           <View style={styles.logoPlaceholder}>
@@ -216,8 +211,7 @@ const LoginScreen: React.FC = () => {
             <Text style={styles.registerLink}>Зарегистрироваться</Text>
           </TouchableOpacity>
         </View>
-      </ScrollView>
-    </KeyboardAvoidingView>
+    </ScrollView>
   );
 };
 

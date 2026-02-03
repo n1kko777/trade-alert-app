@@ -34,7 +34,7 @@
     },
     "android": {
       "package": "com.niktar.tradepulsealerts",
-      "versionCode": 3,
+      "versionCode": 4,
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#0a0e17"
