@@ -7,14 +7,8 @@ import { Platform } from 'react-native';
 WebBrowser.maybeCompleteAuthSession();
 
 // Google OAuth Client IDs
-const GOOGLE_CLIENT_IDS = {
-  // Web client ID (used for Expo Go and web)
-  web: '696544902989-m8nor66hssp5g12uco1tifp8b2c2gcbe.apps.googleusercontent.com',
-  // Android client ID
-  android: '696544902989-kstfvikjgudfijig17gv426jigdcketq.apps.googleusercontent.com',
-  // iOS client ID (uses web client for now)
-  ios: '696544902989-m8nor66hssp5g12uco1tifp8b2c2gcbe.apps.googleusercontent.com',
-};
+// For Expo, we use Web Client ID for all platforms because auth goes through auth.expo.io
+const WEB_CLIENT_ID = '696544902989-m8nor66hssp5g12uco1tifp8b2c2gcbe.apps.googleusercontent.com';
 
 interface UseGoogleAuthResult {
   signIn: () => Promise<string | null>;
@@ -27,9 +21,7 @@ export function useGoogleAuth(): UseGoogleAuthResult {
   const [error, setError] = useState<string | null>(null);
 
   const [request, response, promptAsync] = Google.useIdTokenAuthRequest({
-    clientId: GOOGLE_CLIENT_IDS.web,
-    androidClientId: GOOGLE_CLIENT_IDS.android,
-    iosClientId: GOOGLE_CLIENT_IDS.ios,
+    clientId: WEB_CLIENT_ID,
   });
 
   const [pendingResolve, setPendingResolve] = useState<((token: string | null) => void) | null>(null);
