@@ -7,14 +7,13 @@ import { Platform } from 'react-native';
 WebBrowser.maybeCompleteAuthSession();
 
 // Google OAuth Client IDs
-// You need to create these in Google Cloud Console
 const GOOGLE_CLIENT_IDS = {
   // Web client ID (used for Expo Go and web)
-  web: 'YOUR_WEB_CLIENT_ID.apps.googleusercontent.com',
-  // Android client ID
-  android: 'YOUR_ANDROID_CLIENT_ID.apps.googleusercontent.com',
-  // iOS client ID
-  ios: 'YOUR_IOS_CLIENT_ID.apps.googleusercontent.com',
+  web: '696544902989-m8nor66hssp5g12uco1tifp8b2c2gcbe.apps.googleusercontent.com',
+  // Android client ID (uses web client for now)
+  android: '696544902989-m8nor66hssp5g12uco1tifp8b2c2gcbe.apps.googleusercontent.com',
+  // iOS client ID (uses web client for now)
+  ios: '696544902989-m8nor66hssp5g12uco1tifp8b2c2gcbe.apps.googleusercontent.com',
 };
 
 interface UseGoogleAuthResult {
