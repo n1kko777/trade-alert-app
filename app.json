@@ -6,12 +6,12 @@
     "description": "Percent‑move crypto alerts for Bybit spot pairs. Realtime stream or polling, background monitoring, quiet hours, and local history.",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
-    "userInterfaceStyle": "light",
+    "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
+      "backgroundColor": "#0a0e17"
     },
     "ios": {
       "bundleIdentifier": "com.niktar.tradepulsealerts",
@@ -19,8 +19,17 @@
       "supportsTablet": true,
       "infoPlist": {
         "UIBackgroundModes": [
-          "fetch"
-        ]
+          "fetch",
+          "remote-notification"
+        ],
+        "NSUserTrackingUsageDescription": "Это разрешение позволяет улучшить ваш опыт использования приложения",
+        "ITSAppUsesNonExemptEncryption": false
+      },
+      "config": {
+        "usesNonExemptEncryption": false
+      },
+      "privacyManifests": {
+        "NSPrivacyAccessedAPITypes": []
       }
     },
     "android": {
@@ -28,10 +37,16 @@
       "versionCode": 1,
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#ffffff"
+        "backgroundColor": "#0a0e17"
       },
       "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "permissions": [
+        "INTERNET",
+        "VIBRATE",
+        "RECEIVE_BOOT_COMPLETED",
+        "WAKE_LOCK"
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -39,12 +54,21 @@
     "plugins": [
       "expo-font",
       "expo-background-task",
-      "expo-secure-store"
+      "expo-secure-store",
+      [
+        "expo-notifications",
+        {
+          "sounds": []
+        }
+      ]
     ],
     "extra": {
       "eas": {
         "projectId": "c001661f-49f3-412e-a591-7342c66e6972"
       }
-    }
+    },
+    "owner": "niktar",
+    "githubUrl": "https://github.com/niktar/trade-alert-app",
+    "privacyPolicy": "https://tradealert.ru/privacy"
   }
 }

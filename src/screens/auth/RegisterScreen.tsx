@@ -95,11 +95,11 @@ const RegisterScreen: React.FC = () => {
   };
 
   const handleTermsPress = useCallback(() => {
-    Linking.openURL('https://tradepulse.app/terms');
+    Linking.openURL('https://tradealert.ru/terms');
   }, []);
 
   const handlePrivacyPress = useCallback(() => {
-    Linking.openURL('https://tradepulse.app/privacy');
+    Linking.openURL('https://tradealert.ru/privacy');
   }, []);
 
   return (

@@ -114,7 +114,7 @@ const LoginScreen: React.FC = () => {
         {
           text: 'Узнать больше',
           onPress: () => {
-            Linking.openURL('https://tradepulse.app/auth-methods');
+            Linking.openURL('https://tradealert.ru/faq');
           },
         },
       ]

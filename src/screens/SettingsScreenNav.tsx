@@ -152,7 +152,7 @@ export default function SettingsScreenNav() {
           icon: 'document-text-outline',
           type: 'action',
           onPress: () => {
-            Linking.openURL('https://tradepulse.app/terms');
+            Linking.openURL('https://tradealert.ru/terms');
           },
         },
         {
@@ -161,7 +161,7 @@ export default function SettingsScreenNav() {
           icon: 'shield-outline',
           type: 'action',
           onPress: () => {
-            Linking.openURL('https://tradepulse.app/privacy');
+            Linking.openURL('https://tradealert.ru/privacy');
           },
         },
         {
