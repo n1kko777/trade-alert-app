@@ -60,6 +60,12 @@
         {
           "sounds": []
         }
+      ],
+      [
+        "@react-native-google-signin/google-signin",
+        {
+          "iosUrlScheme": "com.googleusercontent.apps.696544902989-m8nor66hssp5g12uco1tifp8b2c2gcbe"
+        }
       ]
     ],
     "extra": {

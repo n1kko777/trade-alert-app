@@ -1,17 +1,20 @@
 import { useCallback, useEffect, useState } from 'react';
-import * as Google from 'expo-auth-session/providers/google';
-import * as WebBrowser from 'expo-web-browser';
-import { Platform } from 'react-native';
+import {
+  GoogleSignin,
+  statusCodes,
+  isSuccessResponse,
+  isErrorWithCode,
+} from '@react-native-google-signin/google-signin';
 
-// Complete auth session for web
-WebBrowser.maybeCompleteAuthSession();
-
-// Google OAuth Client IDs
-// For Expo, we use Web Client ID for all platforms because auth goes through auth.expo.io
-const WEB_CLIENT_ID = '696544902989-m8nor66hssp5g12uco1tifp8b2c2gcbe.apps.googleusercontent.com';
+// Configure Google Sign-In
+GoogleSignin.configure({
+  webClientId: '696544902989-m8nor66hssp5g12uco1tifp8b2c2gcbe.apps.googleusercontent.com',
+  offlineAccess: true,
+});
 
 interface UseGoogleAuthResult {
   signIn: () => Promise<string | null>;
+  signOut: () => Promise<void>;
   isLoading: boolean;
   error: string | null;
 }
@@ -20,47 +23,56 @@ export function useGoogleAuth(): UseGoogleAuthResult {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const [request, response, promptAsync] = Google.useIdTokenAuthRequest({
-    clientId: WEB_CLIENT_ID,
-  });
-
-  const [pendingResolve, setPendingResolve] = useState<((token: string | null) => void) | null>(null);
-
-  useEffect(() => {
-    if (response?.type === 'success' && pendingResolve) {
-      const idToken = response.params.id_token;
-      pendingResolve(idToken);
-      setPendingResolve(null);
-      setIsLoading(false);
-    } else if (response?.type === 'error' && pendingResolve) {
-      setError(response.error?.message || 'Google sign-in failed');
-      pendingResolve(null);
-      setPendingResolve(null);
-      setIsLoading(false);
-    } else if (response?.type === 'dismiss' && pendingResolve) {
-      pendingResolve(null);
-      setPendingResolve(null);
-      setIsLoading(false);
-    }
-  }, [response, pendingResolve]);
-
   const signIn = useCallback(async (): Promise<string | null> => {
-    if (!request) {
-      setError('Google auth not ready');
-      return null;
-    }
-
     setIsLoading(true);
     setError(null);
 
-    return new Promise((resolve) => {
-      setPendingResolve(() => resolve);
-      promptAsync();
-    });
-  }, [request, promptAsync]);
+    try {
+      await GoogleSignin.hasPlayServices();
+      const response = await GoogleSignin.signIn();
+
+      if (isSuccessResponse(response)) {
+        const idToken = response.data.idToken;
+        return idToken;
+      } else {
+        setError('Sign in was cancelled');
+        return null;
+      }
+    } catch (err) {
+      if (isErrorWithCode(err)) {
+        switch (err.code) {
+          case statusCodes.SIGN_IN_CANCELLED:
+            // User cancelled the sign-in flow
+            break;
+          case statusCodes.IN_PROGRESS:
+            setError('Sign in is already in progress');
+            break;
+          case statusCodes.PLAY_SERVICES_NOT_AVAILABLE:
+            setError('Google Play Services not available');
+            break;
+          default:
+            setError(err.message || 'Unknown error occurred');
+        }
+      } else {
+        setError('An unexpected error occurred');
+      }
+      return null;
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  const signOut = useCallback(async () => {
+    try {
+      await GoogleSignin.signOut();
+    } catch (err) {
+      console.error('Error signing out:', err);
+    }
+  }, []);
 
   return {
     signIn,
+    signOut,
     isLoading,
     error,
   };
