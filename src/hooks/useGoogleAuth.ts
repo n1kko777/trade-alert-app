@@ -10,8 +10,8 @@ WebBrowser.maybeCompleteAuthSession();
 const GOOGLE_CLIENT_IDS = {
   // Web client ID (used for Expo Go and web)
   web: '696544902989-m8nor66hssp5g12uco1tifp8b2c2gcbe.apps.googleusercontent.com',
-  // Android client ID (uses web client for now)
-  android: '696544902989-m8nor66hssp5g12uco1tifp8b2c2gcbe.apps.googleusercontent.com',
+  // Android client ID
+  android: '696544902989-kstfvikjgudfijig17gv426jigdcketq.apps.googleusercontent.com',
   // iOS client ID (uses web client for now)
   ios: '696544902989-m8nor66hssp5g12uco1tifp8b2c2gcbe.apps.googleusercontent.com',
 };
