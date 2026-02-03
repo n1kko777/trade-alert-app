@@ -276,8 +276,9 @@ const createStyles = (theme: Theme) =>
     },
     scrollContent: {
       flexGrow: 1,
-      padding: 24,
-      justifyContent: 'center',
+      paddingHorizontal: 24,
+      paddingBottom: 24,
+      paddingTop: 8,
     },
     header: {
       marginBottom: 32,
