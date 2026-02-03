@@ -253,7 +253,7 @@ const RegisterScreen: React.FC = () => {
           ) : (
             <Ionicons name="logo-google" size={20} color={theme.colors.textPrimary} style={styles.googleIcon} />
           )}
-          <Text style={styles.googleButtonText}>Продолжить с Google</Text>
+          <Text style={styles.googleButtonText}>Войти с Google</Text>
         </TouchableOpacity>
 
         {/* Login Link */}

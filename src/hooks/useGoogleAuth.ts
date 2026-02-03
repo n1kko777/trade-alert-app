@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useState } from 'react';
+import { Platform, Linking } from 'react-native';
 import {
   GoogleSignin,
   statusCodes,
@@ -6,11 +7,13 @@ import {
   isErrorWithCode,
 } from '@react-native-google-signin/google-signin';
 
-// Configure Google Sign-In
-GoogleSignin.configure({
-  webClientId: '696544902989-m8nor66hssp5g12uco1tifp8b2c2gcbe.apps.googleusercontent.com',
-  offlineAccess: true,
-});
+// Configure Google Sign-In for Android only
+if (Platform.OS === 'android') {
+  GoogleSignin.configure({
+    webClientId: '696544902989-m8nor66hssp5g12uco1tifp8b2c2gcbe.apps.googleusercontent.com',
+    offlineAccess: true,
+  });
+}
 
 interface UseGoogleAuthResult {
   signIn: () => Promise<string | null>;
@@ -24,6 +27,21 @@ export function useGoogleAuth(): UseGoogleAuthResult {
   const [error, setError] = useState<string | null>(null);
 
   const signIn = useCallback(async (): Promise<string | null> => {
+    // On iOS, open web app for authentication
+    if (Platform.OS === 'ios') {
+      setIsLoading(true);
+      try {
+        await Linking.openURL('https://app.tradealert.ru/login');
+        return null;
+      } catch (err) {
+        setError('Не удалось открыть веб-приложение');
+        return null;
+      } finally {
+        setIsLoading(false);
+      }
+    }
+
+    // On Android, use native Google Sign-In
     setIsLoading(true);
     setError(null);
 
@@ -63,10 +81,12 @@ export function useGoogleAuth(): UseGoogleAuthResult {
   }, []);
 
   const signOut = useCallback(async () => {
-    try {
-      await GoogleSignin.signOut();
-    } catch (err) {
-      console.error('Error signing out:', err);
+    if (Platform.OS === 'android') {
+      try {
+        await GoogleSignin.signOut();
+      } catch (err) {
+        console.error('Error signing out:', err);
+      }
     }
   }, []);
 

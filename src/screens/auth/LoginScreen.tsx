@@ -10,7 +10,6 @@ import {
   ScrollView,
   ActivityIndicator,
   Alert,
-  Linking,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
@@ -120,22 +119,6 @@ const LoginScreen: React.FC = () => {
     }
   }, [googleSignIn, loginWithGoogle, navigation]);
 
-  const handleAppleLogin = useCallback(() => {
-    Alert.alert(
-      'Вход через Apple',
-      'Авторизация через Apple будет доступна в следующем обновлении.\n\nПока вы можете войти с помощью email и пароля или Google.',
-      [
-        { text: 'OK', style: 'cancel' },
-        {
-          text: 'Узнать больше',
-          onPress: () => {
-            Linking.openURL('https://tradealert.ru/faq');
-          },
-        },
-      ]
-    );
-  }, []);
-
   return (
     <KeyboardAvoidingView
       style={styles.container}
@@ -212,32 +195,19 @@ const LoginScreen: React.FC = () => {
           <View style={styles.divider} />
         </View>
 
-        {/* Social Login */}
-        <View style={styles.socialContainer}>
-          <TouchableOpacity
-            style={styles.socialButton}
-            onPress={handleGoogleLogin}
-            disabled={isLoading || isGoogleLoading || isResetting}
-          >
-            {isGoogleLoading ? (
-              <ActivityIndicator size="small" color={theme.colors.textPrimary} style={styles.socialIconStyle} />
-            ) : (
-              <Ionicons name="logo-google" size={20} color={theme.colors.textPrimary} style={styles.socialIconStyle} />
-            )}
-            <Text style={styles.socialButtonText}>Google</Text>
-          </TouchableOpacity>
-
-          {Platform.OS === 'ios' && (
-            <TouchableOpacity
-              style={styles.socialButton}
-              onPress={handleAppleLogin}
-              disabled={isLoading || isGoogleLoading || isResetting}
-            >
-              <Ionicons name="logo-apple" size={20} color={theme.colors.textPrimary} style={styles.socialIconStyle} />
-              <Text style={styles.socialButtonText}>Apple</Text>
-            </TouchableOpacity>
+        {/* Google Login */}
+        <TouchableOpacity
+          style={styles.googleButton}
+          onPress={handleGoogleLogin}
+          disabled={isLoading || isGoogleLoading || isResetting}
+        >
+          {isGoogleLoading ? (
+            <ActivityIndicator size="small" color={theme.colors.textPrimary} style={styles.googleIcon} />
+          ) : (
+            <Ionicons name="logo-google" size={20} color={theme.colors.textPrimary} style={styles.googleIcon} />
           )}
-        </View>
+          <Text style={styles.googleButtonText}>Войти с Google</Text>
+        </TouchableOpacity>
 
         {/* Register Link */}
         <View style={styles.registerContainer}>
@@ -352,28 +322,23 @@ const createStyles = (theme: Theme) =>
       color: theme.colors.textMuted,
       marginHorizontal: 16,
     },
-    socialContainer: {
-      flexDirection: 'row',
-      justifyContent: 'center',
-      gap: 16,
-      marginBottom: 32,
-    },
-    socialButton: {
+    googleButton: {
       flexDirection: 'row',
       alignItems: 'center',
+      justifyContent: 'center',
       backgroundColor: theme.colors.card,
-      borderRadius: 12,
-      paddingVertical: 14,
-      paddingHorizontal: 24,
+      borderRadius: 14,
+      paddingVertical: 16,
       borderWidth: 1,
       borderColor: theme.colors.cardBorder,
+      marginBottom: 32,
     },
-    socialIconStyle: {
+    googleIcon: {
       marginRight: 8,
     },
-    socialButtonText: {
+    googleButtonText: {
       fontFamily: 'SpaceGrotesk_500Medium',
-      fontSize: 14,
+      fontSize: 16,
       color: theme.colors.textPrimary,
     },
     registerContainer: {
